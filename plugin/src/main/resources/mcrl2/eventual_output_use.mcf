@@ -1,0 +1,42 @@
+%%% Effpi - verified message-passing programs in Dotty
+%%% Copyright 2019 Alceste Scalas and Elias Benussi
+%%% Released under the MIT License: https://opensource.org/licenses/MIT
+
+%%% An observed channel is eventually used for output
+mu Z . (
+  ( % Ensure that no "imprecise" actions exist
+    (!exists t1,t3: Type, c2: ChanType .
+      <i(t1, ctype(c2), t3)>true || <i(ctype(c2), t1, t3)>true ||
+      <o(t1, ctype(c2), t3)>true || <o(ctype(c2), t1, t3)>true)
+  )
+  &&
+  (
+    % We can perform the desired output...
+    (exists xx, t3: Type . val(xx in {$observed$})
+      && <o(xx, xx, t3)>true)
+    ||
+    % ...or we check continuations
+    (
+      ( % Ensure that some "allowed" action exists
+        (exists zz: Variable, t3: Type . <t(tvar(zz), tvar(zz), t3)>true)
+        ||
+        (exists t3, xx: Type .
+          (val(xx in {$observed$}) || val(xx in {$relied$})) &&
+            (<i(xx, xx, t3)>true || <o(xx, xx, t3)>true))
+        ||
+        <tau>true
+      )
+      &&
+      % Recursively check all \tau-actions
+      (forall t1, t2, t3: Type . [t(t1, t2, t3)]Z)
+      &&
+      % Check recursively along I/O on all relied
+      (forall yy, t3: Type .
+        (val(yy in {$relied$})) =>
+          [i(yy, yy, t3)]Z && [o(yy, yy, t3)]Z
+      )
+      &&
+      [tau]Z
+    )
+  )
+)

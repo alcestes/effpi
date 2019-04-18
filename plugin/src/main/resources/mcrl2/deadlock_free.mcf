@@ -1,0 +1,32 @@
+%%% Effpi - verified message-passing programs in Dotty
+%%% Copyright 2019 Alceste Scalas and Elias Benussi
+%%% Released under the MIT License: https://opensource.org/licenses/MIT
+
+%%% Never stop reducing, assuming that inputs/outputs on relied variables
+%%% succeed
+nu Z . (
+  ( ( % Ensure that no "imprecise" actions exist
+      (!exists t1,t3: Type, c2: ChanType .
+        <i(t1, ctype(c2), t3)>true || <i(ctype(c2), t1, t3)>true ||
+        <o(t1, ctype(c2), t3)>true || <o(ctype(c2), t1, t3)>true)
+    )
+    &&
+    ( % Ensure that some "allowed" action exists
+      (exists zz: Variable, t3: Type . <t(tvar(zz), tvar(zz), t3)>true)
+      ||
+      (exists t3: Type, xx: Variable . val(xx in {$relied$}) &&
+         (<i(tvar(xx), tvar(xx), t3)>true || <o(tvar(xx), tvar(xx), t3)>true))
+      ||
+      <tau>true
+    )
+    &&
+    ( % Recursively check continuations along all "allowed" actions
+      (forall zz: Variable, t3: Type . [t(tvar(zz), tvar(zz), t3)]Z)
+      &&
+      (forall t3: Type, xx: Variable . val(xx in {$relied$}) =>
+         ([i(tvar(xx), tvar(xx), t3)]Z && [o(tvar(xx), tvar(xx), t3)]Z))
+      &&
+      [tau]Z
+    )
+  )
+)

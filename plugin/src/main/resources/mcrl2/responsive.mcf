@@ -1,0 +1,66 @@
+%%% Effpi - verified message-passing programs in Dotty
+%%% Copyright 2019 Alceste Scalas and Elias Benussi
+%%% Released under the MIT License: https://opensource.org/licenses/MIT
+
+%%% Whenever some zz is received from an observed variable,
+%%% eventually zz is used to send a reply,
+%%% possibly after some I/O on some observed or relied yy
+nu Z . (
+  ( % If an input payload zz from x is detected, check response on zz
+    (forall xx: Type . val(xx in {$observed$}) => forall zz: Variable .
+      (<i(xx, xx, tvar(zz))>true =>
+        [i(xx, xx, tvar(zz))](
+          mu Z2 . (
+            ( % Ensure that no "imprecise" actions exist
+              (forall t1,t3: Type, c2: ChanType .
+                [i(t1, ctype(c2), t3)]false && [i(ctype(c2), t1, t3)]false &&
+                [o(t1, ctype(c2), t3)]false && [o(ctype(c2), t1, t3)]false)
+            )
+            && ( % Ensure that no input on xx exists before the reply on zz
+              (!exists t3: Type . <i(xx, xx, t3)>true)
+            )
+            &&
+            (
+              % Either use zz to send a reply...
+              (exists t3: Type . <o(tvar(zz), tvar(zz), t3)>true)
+              ||
+              % ...or perform recursive checks
+              (
+                (% Ensure that some "allowed" action exists
+                  (exists yy: Variable, t3: Type . <t(tvar(yy), tvar(yy), t3)>true)
+                  ||
+                  (exists t1, t3, yy: Type .
+                    val(yy in {$observed_relied_probes$}) &&
+                    (<i(yy, yy, t3)>true || <o(yy, yy, t3)>true))
+                  ||
+                  <tau>true
+                )
+                &&
+                % Recursively check all \tau-actions
+                (forall t1, t2, t3: Type . [t(t1, t2, t3)]Z2)
+                &&
+                % Check recursively along I/O on all observed and relied
+                (forall yy, t3: Type .
+                  val(yy in {$observed_relied$}) =>
+                    [i(yy, yy, t3)]Z2 && [o(yy, yy, t3)]Z2
+                )
+                &&
+                [tau]Z2
+              )
+            )
+          )
+        )
+      )
+    )
+  ) && ( % Recursive checks
+    (forall t1, t2, t3: Type . [t(t1, t2, t3)]Z) %% Check after synchronisation
+    &&
+    % Check recursively along I/O on all observed, relied and probes
+    (forall yy, t3: Type .
+       val(yy in {$observed_relied_probes$}) =>
+         [i(yy, yy, t3)]Z && [o(yy, yy, t3)]Z
+    )
+    &&
+    [tau]Z
+  )
+)

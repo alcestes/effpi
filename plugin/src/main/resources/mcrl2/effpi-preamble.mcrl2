@@ -1,0 +1,66 @@
+%%% Preamble %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%% Variable
+sort Variable;
+cons v: Nat -> Variable;
+
+var xn, yn: Nat;
+eqn v(xn) == v(yn) = xn == yn;
+
+%%% Commonly-used variables
+map x, x1, x2, y, y1, y2, z, z1, z2: Variable;
+eqn x  = v(0);
+    x1 = v(1);
+    x2 = v(2);
+    y  = v(10);
+    y1 = v(11);
+    y2 = v(12);
+    z  = v(100);
+    z1 = v(101);
+    z2 = v(102);
+
+%%% Channel type
+sort ChanType;
+cons ct: Nat -> ChanType;
+
+var xn, yn: Nat;
+eqn ct(xn) == ct(yn) = xn == yn;
+
+%%% Commonly-used channel types
+map ct1, ct2, ct3: ChanType;
+eqn ct1 = ct(1);
+    ct2 = ct(2);
+    ct3 = ct(3);
+
+%%% Mailbox type
+sort MailboxType;
+cons mb: Nat -> MailboxType;
+
+var xn, yn: Nat;
+eqn mb(xn) == mb(yn) = xn == yn;
+
+%%% Ground Type
+sort GroundType;
+cons gt: Nat -> GroundType;
+
+var xn, yn: Nat;
+eqn gt(xn) == gt(yn) = xn == yn;
+
+%%% Commonly-used ground types
+map gBool, gInt, gString: GroundType;
+eqn gBool   = gt(0);
+    gInt    = gt(1);
+    gString = gt(2);
+
+%%% Generic type (either a variable, or a channel type, or a ground type)
+sort Type = struct tvar(Variable)     ? is_variable
+                 | ctype(ChanType)    ? is_channel_type
+                 | mtype(MailboxType) ? is_mailbox_type
+                 | gtype(GroundType)  ? is_ground_type;
+
+%%% Actions: the 1st type is sender, the 2nd is recipient, the 3rd is payload
+act o: Type # Type # Type;
+act i: Type # Type # Type;
+act t: Type # Type # Type;
+
+%%% Process %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

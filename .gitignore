@@ -1,0 +1,11 @@
+project/
+src/main/scala/target/
+target/
+*DS_Store
+.dotty*
+scripts/graphs/*
+*python-version
+benchmarkresults/
+benchmarks.db
+
+.vscode

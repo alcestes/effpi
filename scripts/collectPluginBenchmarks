@@ -1,0 +1,204 @@
+#!/bin/sh
+exec scala -feature -deprecation "$0" "$@"
+!#
+
+import scala.collection.JavaConverters._
+
+import java.nio.file.{Files, Path, Paths}
+import java.io.File
+
+// Position where temporary directories are created
+val tmpBase = Paths.get(System.getProperty("java.io.tmpdir")).toFile
+
+// Collect all directories with prefix "effpi-" from `tmpBase`
+val tmpDirs = tmpBase.listFiles.filter(_.isDirectory).filter { d =>
+  tmpBase.toPath.relativize(d.toPath).toString.startsWith("effpi-")
+}
+
+// Collect all files ending with .csv in `tmpDirs`
+val csvFiles = tmpDirs.foldLeft(List[File]()) { (acc, d) =>
+  if (d.canRead) {
+    acc ++ d.listFiles.filter { f =>
+      f.isFile && f.canRead && f.getAbsolutePath.endsWith(".csv")
+    }
+  } else acc
+}
+
+// Collect all unique CSV file names (ignoring their path)
+val csvFileNames = csvFiles.map { f =>
+  f.toPath.getFileName.toString
+}.toSet
+
+// Associate each CSV file name with the newest file having that name
+val csvFileLatest = csvFileNames.foldLeft(Map[String, File]()) { (m, f) =>
+  val files = csvFiles.filter(_.toPath.getFileName.toString == f)
+  val sorted = files.sortWith(_.lastModified > _.lastModified)
+  m + (f -> sorted(0))
+}
+
+// Scan CSV file names to figure out which specs and properties are verified
+val (specsSet, propertiesSet) = (csvFileNames.filter { f =>
+  f.split("\\.").size == 2 // Ensure that the name contains only one "."
+} map { f =>
+  f.split("\\.")(0) // Drop the extension
+} filter { f =>
+  f.split("-").size == 3 // Expected file name: benchmark-<spec>-<formula>
+} map { f =>
+  val splits = f.split("-")
+  (splits(1), splits(2))
+}).unzip
+
+val specs = specsSet.toSeq
+val properties = propertiesSet.toSeq
+
+// Combine all specs and formulas, and read the corresponding file
+val data: Map[(String, String), Option[Seq[String]]] = Map(
+  (for (spec <- specs; prop <- properties) yield {
+    val filename = s"benchmark-${spec}-${prop}.csv"
+    ((spec, prop),
+     for (file <- csvFileLatest.get(filename)) yield {
+       Files.readAllLines(file.toPath).asScala
+     })
+  }).toSeq:_*
+)
+
+// Compute the average and standard deviation
+val results: Map[(String, String), Option[Summary]] = data.map { case (k, v) =>
+  (k, avgStdDev(v))
+}
+
+// Look for the number of states of a spec
+val states: Map[String, Option[Long]] = Map(specs.map { spec =>
+  val st = results.filterKeys { case (s, _) => // Select summaries for `spec`
+    s == spec
+  }.values.foldLeft(None: Option[Long]) { case (acc,sum) => // Find Some(states)
+    sum match {
+      case None => None
+      case Some(summary) => summary.states match {
+        case None => acc
+        case s: Some[Long] => {
+          assert(acc.isEmpty || acc == s) // Complain if there are conflicts
+          s
+        }
+      }
+    }
+  }
+  (spec, st)
+}.toSeq:_*)
+
+// Preferred order for properties in benchmark results
+val orderedProps = Seq(
+  ("deadlock_free",       "deadlock-free"),
+  ("eventual_output_use", "ev-usage"),
+  ("forwarding",          "forwarding"),
+  ("no_output_use",       "non-usage"),
+  ("reactive",            "reactive"),
+  ("responsive",          "responsive")
+)
+val orderedPropIds = orderedProps.map(_._1)
+val extraProps: Seq[String] = {
+  properties.filter(!orderedProps.map(_._1).contains(_))
+}
+val propDescrs = Map(orderedProps:_*) ++ Map(
+  // Add unknown properties with a default name
+  extraProps.map(prop => (prop, s"? ${prop}")):_*
+)
+
+
+// Preferred order for specifications in benchmark results
+val orderedSpecs = Seq(
+  // NOTE: do not use commas "," in descriptions, to avoid messing up the CSV
+  ("payaudit8",      "Pay & audit + 8 clients"),
+  ("payaudit10",     "Pay & audit + 10 clients"),
+  ("payaudit12",     "* Pay & audit + 12 clients"),
+  ("dining4",        "* Dining philos. (4 - deadlock)"),
+  ("dining4_df",     "* Dining philos. (4 - no deadlock)"),
+  ("dining5",        "Dining philos. (5 - deadlock)"),
+  ("dining5_df",     "Dining philos. (5 - no deadlock)"),
+  ("dining6",        "Dining philos. (6 - deadlock)"),
+  ("dining6_df",     "Dining philos. (6 - no deadlock)"),
+  ("pingpong6",      "Ping-pong (6 pairs - non-responsive)"),
+  ("pingpong6resp",  "Ping-pong (6 pairs)"),
+  ("pingpong8",      "Ping-pong (8 pairs - non-responsive)"),
+  ("pingpong8resp",  "Ping-pong (8 pairs)"),
+  ("pingpong10",     "Ping-pong (10 pairs - non-responsive)"),
+  ("pingpong10resp", "* Ping-pong (10 pairs)"),
+  ("ring10",         "Ring (10 elements)"),
+  ("ring15",         "Ring (15 elements)"),
+  ("ring10tok3",     "Ring (10 elements - 3 tokens)"),
+  ("ring15tok3",     "Ring (15 elements - 3 tokens)")
+)
+val orderedSpecIds = orderedSpecs.map(_._1)
+val extraSpecs: Seq[String] = {
+  specs.filter(!orderedSpecIds.contains(_))
+}
+val specDescrs = Map(orderedSpecs:_*) ++ Map(
+  // Add unknown specs with a default name
+  extraSpecs.map(spec => (spec, s"? ${spec}")):_*
+)
+
+val propHeaders = (orderedProps.map(_._1) ++ extraProps).map(propDescrs(_))
+
+println(s"spec,states,${propHeaders.mkString(",")}")
+println(csvify(orderedSpecIds ++ extraSpecs, specDescrs,
+               orderedPropIds ++ extraProps, results, states))
+
+// From a series of measurements, get: result, number of states, mean, std.dev.
+case class Summary(result: Boolean, states: Option[Long],
+                   mean: Double, stdDev: Double)
+def avgStdDev(v: Option[Seq[String]]): Option[Summary] = for {
+  lines <- v
+} yield {
+  assert(lines.length > 2)
+  assert(lines(0) == "result,states,nanosecs")
+  val splits = lines.tail.map(_.split(",")) // Skip header and split lines
+  assert(splits(0).length == 3)
+  val result = splits(0)(0) // Expected result (the same in all runs)
+  assert(result == "true" || result == "false")
+  val states = splits(0)(1) // Number of states (the same in all runs)
+  val mean = splits.foldLeft(0.0) { (acc, l) =>
+    assert(l(0) == result)
+    assert(l(1) == states)
+    acc + toSeconds(l(2)) // Convert to seconds
+  } / splits.length
+
+  val stdDev = Math.sqrt(splits.foldLeft(0.0) { (acc, l) =>
+                           val diff = toSeconds(l(2)) - mean
+                           acc + (diff * diff)
+                         }.toDouble / splits.length)
+  
+  val statesOpt = if (states == "∞") None else Some(states.toLong)
+  
+  Summary(result == "true", statesOpt, mean, stdDev)
+}
+
+// Convert a string containing nanoseconds into seconds, in double precision
+def toSeconds(v: String): Double = {
+  (v.toLong / 1000).toDouble / 1000000.0
+}
+
+// Render benchmarking result summaries in CSV format
+def csvify(specs: Seq[String], specDescr: Map[String, String],
+           properties: Seq[String],
+           results: Map[(String, String), Option[Summary]],
+           states: Map[String, Option[Long]]): String = (for {
+  spec <- specs
+} yield {
+  (Seq(
+    s"""\"${specDescr(spec)}\"""",
+    states.getOrElse(spec, None) match {
+      case Some(st) => s"${st}"
+      case None => "∞"
+    }
+  ) ++ (for (prop <- properties) yield {
+    results.getOrElse((spec, prop), None) match {
+      case Some(summary) => {
+        val stdDevPerc = (summary.stdDev / summary.mean) * 100
+        val fmtMean = "%.2f".format(summary.mean)
+        val fmtStdDevPerc = "%.2f".format(stdDevPerc)
+        s"${summary.result} (${fmtMean} ± ${fmtStdDevPerc}%)"
+      }
+      case None => "N/A"
+    }
+  })).mkString(",")
+}).mkString("\n")

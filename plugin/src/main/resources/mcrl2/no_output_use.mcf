@@ -1,0 +1,16 @@
+%%% Effpi - verified message-passing programs in Dotty
+%%% Copyright 2019 Alceste Scalas and Elias Benussi
+%%% Released under the MIT License: https://opensource.org/licenses/MIT
+
+%%% No observed channel is ever used for output
+nu Z . forall xx: Type . val(xx in {$observed_approx$}) => (
+  (forall t3: Type . [o(xx, xx, t3)]false)
+  &&
+  (forall t1, t2, t3: Type .
+    [i(t1, t2, t3)]Z && [o(t1, t2, t3)]Z && [t(t1, t2, t3)]Z)
+  &&
+  % Check through mailbox inputs
+  (forall m: MailboxType, t3: Type . [i(mtype(m), mtype(m), t3)]Z)
+  &&
+  [tau]Z
+)

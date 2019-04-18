@@ -1,0 +1,99 @@
+#!/bin/sh
+exec scala -feature -deprecation -cp ./benchmarks/target/scala-0.9/effpi-benchmarks-assembly-0.0.2.jar "$0" "$@"
+!#
+// Effpi - verified message-passing programs in Dotty
+// Copyright 2019 Alceste Scalas and Elias Benussi
+// Released under the MIT License: https://opensource.org/licenses/MIT
+
+import sys.process._
+
+import java.time.ZonedDateTime
+import java.time.format.DateTimeFormatter.{RFC_1123_DATE_TIME => RFC}
+
+import scala.language.implicitConversions
+import scala.language.postfixOps
+
+import java.sql.DriverManager
+import scalikejdbc._
+
+object Main {
+  Class.forName("org.sqlite.JDBC") // Import SQLite JDBC driver
+  val BENCH_OUTFILE = "benchmarks.db"
+
+  def main(args: Array[String]) = {
+    GlobalSettings.loggingConnections = false
+    GlobalSettings.loggingSQLAndTime = LoggingSQLAndTimeSettings(
+      enabled = false,
+      singleLineMode = false,
+      printUnprocessedStackTrace = false,
+      stackTraceDepth= 15,
+      logLevel = 'warn,
+      warningEnabled = false,
+      warningThresholdMillis = 3000L,
+      warningLogLevel = 'warn
+    )
+
+    val repetitions = if (args.length > 0) args(0) else 1
+    println(s"Setting up benchmark repetitions to: ${repetitions}")
+
+    val delay = 5 // Number of seconds to wait between benchmarks
+
+    val systems = List("statemachinemultistep", "runnerimproved", "akka")
+
+    val benchmarks = List("chameneos", "counting",
+                          "forkjoin_creation", "forkjoin_throughput",
+                          "pingpong",
+                          "ring", "ringstream")
+
+    val startTime = ZonedDateTime.now()
+    println(s"Benchmarks starting on ${startTime.format(RFC)}")
+
+    val cfg = new org.sqlite.SQLiteConfig()
+    cfg.enforceForeignKeys(true)
+    val db = DB(DriverManager.getConnection(s"jdbc:sqlite:${BENCH_OUTFILE}",
+                                            cfg.toProperties))
+    //db.begin()
+    implicit val session = db.autoCommitSession()
+
+    val benchGroupId = sql"insert into benchmark_group(`start`) values (${System.currentTimeMillis})".updateAndReturnGeneratedKey.apply()
+    println(s"Benchmark group id: ${benchGroupId}")
+
+    for (benchmark <- benchmarks) {
+      for (system <- systems) {
+        println(s"\n* Waiting ${delay} seconds to let the system settle")
+        Thread.sleep(delay * 1000)
+        val oomOpts = "-Xms128M -Xmx4G -XX:+CrashOnOutOfMemoryError"
+        s"java ${oomOpts} -jar ./benchmarks/target/scala-0.9/effpi-benchmarks-assembly-0.0.2.jar size_vs_time ${system} ${benchmark} ${repetitions} ${benchGroupId}" !
+      }
+    }
+
+    for (benchmark <- benchmarks) {
+      for (system <- systems) {
+        println(s"\n* Waiting ${delay} seconds to let the system settle")
+        Thread.sleep(delay * 1000)
+        val oomOpts = "-Xms128M -Xmx4G -XX:+CrashOnOutOfMemoryError"
+        s"java ${oomOpts} -jar ./benchmarks/target/scala-0.9/effpi-benchmarks-assembly-0.0.2.jar size_vs_memory ${system} ${benchmark} ${repetitions} ${benchGroupId}" !
+      }
+    }
+
+    sql"update benchmark_group set `end` = ${System.currentTimeMillis} where `id` = ${benchGroupId}".update.apply()
+
+    //db.commit()
+    db.close()
+
+    val endTime = ZonedDateTime.now()
+    println(s"\nBenchmarks completed on: ${endTime.format(RFC)}")
+    val seconds = java.time.Duration.between(startTime, endTime).getSeconds
+    val (hh, mm, ss) = (seconds / 3600, (seconds / 60) % 60, seconds % 60)
+    println(f"Total time: ${hh}:${mm}%02d:${ss}%02d")
+
+    // println("run time vs number of threads per core")
+    // for (psIndex <- 0 to 1) {
+    //   for (benchmarkIndex <- 0 to 5) {
+    //     println(s"* Waiting ${delay} seconds to let the system settle")
+    //     Thread.sleep(delay * 1000)
+    //     s"java -jar ./target/scala-0.9/effpi-assembly-0.1.0.jar 1 $psIndex $benchmarkIndex $numReps" !
+    //   }
+    // }
+  }
+}
