@@ -24,14 +24,14 @@
     <div class="header-container">
       <header class="wrapper clearfix">
         <h1 class="title">Effpi</h1>
-	<p class="title">Verified message-passing programs in Dotty</p>
-	<!--
-        <nav>
-          <ul>
-            <li><a href="#">nav ul li a</a></li>
-          </ul>
-        </nav>
-	-->
+	    <p class="title">Verified message-passing programs in Dotty</p>
+	    <!--
+            <nav>
+              <ul>
+                <li><a href="#">nav ul li a</a></li>
+              </ul>
+            </nav>
+	        -->
       </header>
     </div>
 
@@ -40,94 +40,161 @@
 
         <article>
           <header>
-	    Effpi is an experimental toolkit
-	    for <em>strongly-typed</em> concurrent and distributed
-	    programming in <a href="http://dotty.epfl.ch/">Dotty</a>
-	    (a.k.a. the future Scala 3 programming language),
-	    with verification capabilities
-	    based on <em>type-level model checking</em>.
+	        Effpi is an experimental toolkit
+	        for <em>strongly-typed</em> message-passing
+	        programs in <a href="http://dotty.epfl.ch/">Dotty</a>
+	        (a.k.a. the future Scala 3 programming language),
+	        with verification capabilities
+	        based on <em>type-level model checking</em>.
           </header>
           <section>
+            <h2>Features</h2>
+            <ol>
+              <li>
+                <strong>behavioural types</strong>, i.e., types that
+                specify the <strong>protocol</strong> that a program
+                is expected to follow: what messages it should
+                send/receive, their intended destination/origin, and
+                their order. For example:
+                <pre class="code">
+// Take a channel carrying strings, and use it to send either
+// "Hello" followed by "world!", or "Bye"
+type T = (x: Chan[String]) => (
+  (Out[x.type, "Hello"] >>: Out[x.type, "world!"])
+  |
+  Out[x.type, "Bye"]
+)</pre>
+              </li>
+              <li>
+                a <strong>Domain-Specific Language</strong> for
+                writing message-passing programs with the behavioural
+                types above. The DSL is type-checked by the Dotty
+                compiler: if a program compiles, then it correctly
+                implements the intended type/protocol. For example:
+                <pre class="code">
+// Implement type/protocol T above (enforced by the type annot.)
+val f: T = (x: Chan[String]) => {
+  if (...) {
+    println("Sending 'Hello' and then 'world!'")
+    send(x, "Hello") >>
+    send(x, "world!")
+  } else {
+    println("Sending 'Bye'")
+    send(x, "Bye")
+  }
+}</pre>
+
+              </li>
+              <li>
+                an <strong>efficient interpreter</strong> for the DSL
+                above, that can run highly concurrent applications
+                millions of interacting components (with an approach
+                reminiscent of <a href="https://akka.io/">Akka</a>);
+              </li>
+              <li>
+                <strong>compile-time verification of behavioural
+                properties</strong>: Effpi can check whether a (typed)
+                program (or ensemble of programs) enjoys properties
+                like deadlock-freedom. This is achieved through a
+                compiler plugin that interfaces to
+                the <a href="http://mcrl2.org">mCRL2 model
+                checker</a>. For example:
+                <pre class="code">
+// Define a bunch of protocols for multiple programs...
+type T1[...] = ...
+type T2[...] = ...
+
+// ...and verify whether their parallel composition ("Par")
+// and implementation ("impl") could deadlock, or not. If the
+// verification passes, then "impl" will never get stuck
+@effpi.verify(property="deadlock_free()")
+def impl(x: Chan[...], y: Chan[...]): Par[T1, T2] = {
+  ...
+}
+</pre>
+              </li>
+            </ol>
+
             <h2>Resources</h2>
             <p>
-	      <em>This website is under constriction.</em>
-	      For now, please refer to the following materials.
-	    </p>
-	    <ul>
-	      <li><strong>Papers</strong></li>
-	      <ul>
-		<li>
-		  <a href="https://www.doc.ic.ac.uk/~ascalas/tmp/pldi19/papers/effpi-scala19.pdf">A brief
-		    overview</a> of Effpi (tool paper accepted at the
-          <a href="https://2019.ecoop.org/home/scala-2019">Scala Symposium 2019</a>);
-		</li>
-		<li>
-		  A. Scalas, N. Yoshida, E. Benussi.
-		  <a href="http://mrg.doc.ic.ac.uk/publications/verifying-message-passing-programs-with-dependent-behavioural-types/pldi19-preprint.pdf"><em>Verifying message-passing programs
-		      with dependent behavioural types</em></a>.
-		  PLDI 2019.
-          This paper describes the theoretical foundations of Effpi,
-          and evaluates its implementation.
-          Effpi has been reviewed and accepted as companion artifact
-          of the paper.
-		</li>
-	      </ul>
-	      <li><strong>Implementation</strong></li>
-	      <ul>
-		    <li>
-		      <strong><a href="https://github.com/alcestes/effpi">Effpi's source
-		          code on GitHub</a></strong>
-		    </li>
-		    <li>
-		      <strong><a href="readme.html">Instructions and requirements</a></strong>:
-		      how to build Effpi, its software dependencies,
-		      how to reproduce the benchmarks in the PLDI'19 paper,
-		      and how to navigate Effpi's source code.
-		    </li>
-		    <li>
-		      <strong><a href="https://www.doc.ic.ac.uk/~ascalas/tmp/pldi19/pldi19-artifact-vm.ova">A ready-to-use virtual machine</a></strong>
-		      with all Effpi's software dependencies.
-		      For details, please read the instructions above.
-		    </li>
-	      </ul>
-	    </ul>
+	          <em>This website is under constriction.</em>
+	          For now, please refer to the following materials.
+	        </p>
+	        <ul>
+	          <li><strong>Papers</strong></li>
+	          <ul>
+		        <li>
+		          <a href="https://www.doc.ic.ac.uk/~ascalas/tmp/pldi19/papers/effpi-scala19.pdf">A brief
+		            overview</a> of Effpi (tool paper accepted at the
+                  <a href="https://2019.ecoop.org/home/scala-2019">Scala Symposium 2019</a>);
+		        </li>
+		        <li>
+		          A. Scalas, N. Yoshida, E. Benussi.
+		          <a href="http://mrg.doc.ic.ac.uk/publications/verifying-message-passing-programs-with-dependent-behavioural-types/pldi19-preprint.pdf"><em>Verifying message-passing programs
+		              with dependent behavioural types</em></a>.
+		          PLDI 2019.
+                  This paper describes the theoretical foundations of Effpi,
+                  and evaluates its implementation.
+                  Effpi has been reviewed and accepted as companion artifact
+                  of the paper.
+		        </li>
+	          </ul>
+	          <li><strong>Implementation</strong></li>
+	          <ul>
+		        <li>
+		          <strong><a href="https://github.com/alcestes/effpi">Effpi's source
+		              code on GitHub</a></strong>
+		        </li>
+		        <li>
+		          <strong><a href="readme.html">Instructions and requirements</a></strong>:
+		          how to build Effpi, its software dependencies,
+		          how to reproduce the benchmarks in the PLDI'19 paper,
+		          and how to navigate Effpi's source code.
+		        </li>
+		        <li>
+		          <strong><a href="https://www.doc.ic.ac.uk/~ascalas/tmp/pldi19/pldi19-artifact-vm.ova">A ready-to-use virtual machine</a></strong>
+		          with all Effpi's software dependencies.
+		          For details, please read the instructions above.
+		        </li>
+	          </ul>
+	        </ul>
           </section>
           <footer>
             <h3>Authors</h3>
-	    <p>
-	      Effpi is developed by:
-	    </p>
-	    <ul>
-	      <li>
-		Alceste Scalas &mdash; Aston University, Birmingham, UK
-		<span class="email">a.scalas (at) aston (dot) ac (dot) uk</span>
-	      </li>
-	      <li>
-		Elias Benussi &mdash; Faculty Science Ltd., UK
-		<span class="email">elias (at) faculty (dot) ai</span>
-	      </li>
-	    </ul>
+	        <p>
+	          Effpi is developed by:
+	        </p>
+	        <ul>
+	          <li>
+		        Alceste Scalas &mdash; Aston University, Birmingham, UK
+		        <span class="email">a.scalas (at) aston (dot) ac (dot) uk</span>
+	          </li>
+	          <li>
+		        Elias Benussi &mdash; Faculty Science Ltd., UK
+		        <span class="email">elias (at) faculty (dot) ai</span>
+	          </li>
+	        </ul>
 
-	    <p>
-	      The theory behind Effpi is developed in
-	      collaboration with:
-	    </p>
-	    
-	    <ul>
-	      <li>
-		Nobuko Yoshida &mdash; Imperial College London, UK
-		<span class="email">n.yoshida (at) imperial (dot) ac (dot) uk</span>
-	      </li>
-	    </ul>
+	        <p>
+	          The theory behind Effpi is developed in
+	          collaboration with:
+	        </p>
+	        
+	        <ul>
+	          <li>
+		        Nobuko Yoshida &mdash; Imperial College London, UK
+		        <span class="email">n.yoshida (at) imperial (dot) ac (dot) uk</span>
+	          </li>
+	        </ul>
           </footer>
         </article>
 
-	<!--
-        <aside>
-          <h3>aside</h3>
-          <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Aliquam sodales urna non odio egestas tempor. Nunc vel vehicula ante. Etiam bibendum iaculis libero, eget molestie nisl pharetra in. In semper consequat est, eu porta velit mollis nec. Curabitur posuere enim eget turpis feugiat tempor. Etiam ullamcorper lorem dapibus velit suscipit ultrices.</p>
-        </aside>
-	-->
+	    <!--
+            <aside>
+              <h3>aside</h3>
+              <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Aliquam sodales urna non odio egestas tempor. Nunc vel vehicula ante. Etiam bibendum iaculis libero, eget molestie nisl pharetra in. In semper consequat est, eu porta velit mollis nec. Curabitur posuere enim eget turpis feugiat tempor. Etiam ullamcorper lorem dapibus velit suscipit ultrices.</p>
+            </aside>
+	        -->
 
       </div> <!-- #main -->
     </div> <!-- #main-container -->
