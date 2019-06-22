@@ -1,0 +1,270 @@
+<!doctype html>
+<head>
+  <meta charset="utf-8">
+  <title>Effpi: Instructions</title>
+  <style>
+    pre.code {      
+      color: white;
+      background-color: black;
+      margin: 15px;
+      padding: 5px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Effpi: Instructions</h1>
+
+  <p>
+    This file documents how to use Effpi to replicate the claims
+    in the following paper:
+  </p>
+
+  <ul>
+    <li>
+      A. Scalas, N. Yoshida, E. Benussi.
+      <a href="http://mrg.doc.ic.ac.uk/publications/verifying-message-passing-programs-with-dependent-behavioural-types/pldi19-preprint.pdf"><em>Verifying
+	  message-passing programs with dependent behavioural
+	  types</em></a>.  PLDI 2019 (to appear).
+    </li>
+  </ul>
+  
+  <h2 id="gettingstarted">Getting Started</h2>
+
+  <h3 id="softwaredependencies">Software Dependencies</h3>
+
+  <p>Building and testing Effpi requires many dependencies, listed here
+    (but we also provide a preconfigured virtual machine: see below).</p>
+
+  <ul>
+    <li>sbt, the Scala build tool - <a href="https://scala-sbt.org/">https://scala-sbt.org/</a></li>
+
+    <li>the mCRL2 model checker - <a href="https://mcrl2.org/">https://mcrl2.org/</a></li>
+
+    <li>Scala 2.12 (used in benchmarking scripts) - <a href="https://scala-lang.org/">https://scala-lang.org/</a></li>
+
+    <li>SQLite 3 (to collect runtime benchmark data) - <a href="https://sqlite.org/">https://sqlite.org/</a></li>
+
+    <li>Python 3 (to plot runtime benchmarks) - <a href="https://www.python.org/">https://www.python.org/</a></li>
+
+    <li>NumPy (to plot runtime benchmarks) - <a href="http://www.numpy.org/">http://www.numpy.org/</a></li>
+
+    <li>Matplotlib (to plot runtime benchmarks) - <a href="https://matplotlib.org/">https://matplotlib.org/</a></li>
+
+    <li>GNU Make (for the documentation) - <a href="https://www.gnu.org/software/make/">https://www.gnu.org/software/make/</a></li>
+
+    <li>Sphinx (for the documentation) - <a href="https://www.sphinx-doc.org/">https://www.sphinx-doc.org/</a></li>
+  </ul>
+
+  <h3 id="virtualmachine">Virtual Machine</h3>
+
+  <p>We have prepared a
+    preconfigured virtual machine, based on a minimal Ubuntu installation,
+    plus all software dependencies above (and more):</p>
+
+  <ul>
+    <li><a href="https://www.doc.ic.ac.uk/~ascalas/tmp/pldi19/pldi19-artifact-vm.ova">https://www.doc.ic.ac.uk/~ascalas/tmp/pldi19/pldi19-artifact-vm.ova</a></li>
+
+    <li>username: pldi19</li>
+
+    <li>password: pldi19</li>
+  </ul>
+
+  <p>The download size is around 1.9 GB; once imported on VirtualBox, the
+    virtual machine should use around 10 GB of disk space.</p>
+
+  <p><strong>NOTE:</strong> the virtual machine
+    does <em>not</em> contain the Effpi source code. After
+    launching the VM, you will need to clone the following Git repository:</p>
+
+  <ul>
+    <li><a href="https://www.doc.ic.ac.uk/~ascalas/tmp/pldi19/effpi.git">https://www.doc.ic.ac.uk/~ascalas/tmp/pldi19/effpi.git</a></li>
+  </ul>
+
+  <h3 id="kickthetires">Kick-the-Tires</h3>
+
+  <p>From the root directory of the Effpi source code, try:</p>
+
+  <pre class="code">
+sbt ";plugin/assembly;examples/compile"</pre>
+
+  <p>The expected outcome is:</p>
+
+  <ul>
+    <li><p>sbt will download all its project dependencies (not listed above),
+	including the Dotty compiler and runtime. This might take some
+	time, depending on your Internet connection speed;</p></li>
+
+    <li><p>then, it will try to compile some examples, also leveraging the
+	mCRL2 model checker;</p></li>
+
+    <li><p>you should <strong>not see any error</strong>, but</p></li>
+
+    <li><p>you should see some warnings, like <em>"the property does not hold"</em>
+	and <em>"match may not be exhaustive"</em>: this is OK.</p></li>
+  </ul>
+
+  <p>If the above works, then you can quickly try the runtime, by executing:</p>
+
+  <pre class="code">
+sbt "examples/runMain effpi.examples.diningphilo.Main"</pre>
+
+  <p>This is a deadlocking implementation of Dijkstra's dining philosophers
+    problem. The expected outcome is:</p>
+
+  <ul>
+    <li><p>you should see some messages describing three philosophers trying
+	to have dinner, while sharing three forks;</p></li>
+
+    <li><p>after a while, the philosophers should deadlock;</p></li>
+
+    <li><p>then, after 30 seconds, the program will timeout, throwing an
+	exception.</p></li>
+  </ul>
+
+  <h2 id="stepbystepinstructions">Step-by-Step Instructions</h2>
+
+  <p>Here we provide the basic instructions for replicating the main
+    measurements and claims in the PLDI'19 paper. Then, we provide
+    pointers for further exploration.</p>
+
+  <h3 id="basicevaluation">Replicating the Main Measurements</h3>
+
+  <p>Here we show how to reproduce Figures 8 and 9 in the PLDI'19 paper.</p>
+
+  <h4 id="reproducingfigure8runtimebenchmarks">Reproducing Figure 8 (Runtime Benchmarks)</h4>
+
+  <p>Figure 8 supports the claim that, although Effpi is a research
+    prototype, its peformance appears viable, when compared with Akka.</p>
+
+  <p>First, you need to invoke a setup script (this is only needed before
+    running the benchmarks for the first time):</p>
+
+  <pre class="code">
+./scripts/setup-runtime-benchmarks.sh</pre>
+
+  <p>The script above will download some more dependencies, and set up an
+    SQLite database (in a file callsed <code>benchmarks.db</code>),
+    that will contain the benchmarking results.</p>
+
+  <p>Then, you can build and execute the benchmarks, by running (note the
+    optional parameter <code>N</code>):</p>
+
+  <pre class="code">
+./scripts/exec-runtime-benchmarks.sh [N]</pre>
+
+  <p>Above, the optional parameter <code>N</code> is the number of
+    repetitions. The default is <code>1</code>: it takes around 3.5 hours on
+    the virtual machine, running on an Intel i7@2.40GHz with 4 GB of
+    RAM.</p>
+
+  <p>For a full benchmark, you can
+    run <code>./scripts/exec-runtime-benchmarks.sh 10</code>
+    (where <code>10</code> is the number of repetitions used for
+    Figure 8 in the paper; note that it would likely take over 20
+    hours on the VM).</p>
+
+  <p><strong>NOTE:</strong> depending on the amount of available RAM in your system,
+    some benchmarks might crash, due to out-of-memory errors. This is
+    expected, and the benchmarking scripts handle such cases gracefully.</p>
+
+  <p>Finally, you can create plots like the ones in Figure 8, by running:</p>
+
+  <pre class="code">
+./scripts/plot-runtime-benchmarks.sh</pre>
+
+  <p>You should be able to see the plots for execution time and memory
+    under the directories <code>scripts/graphs/time</code> and
+    <code>scripts/graphs/memory</code>, respectively. You can browse them by
+    invoking:</p>
+
+  <pre class="code">
+thunar scripts/graphs/time
+thunar scripts/graphs/memory</pre>
+
+  <h4 id="reproducingfigure9verificationbenchmarks">Reproducing Figure 9 (Verification Benchmarks)</h4>
+
+  <p>Figure 9 measures the verification of protocols with many interacting
+    components, and a rather large number of states. The claim is that, by
+    such numbers, <em>"our model checking approach appears viable: it can
+      provide (quasi)real-time verification results, suitable for
+      interactive error reporting on an IDE"</em>.</p>
+
+  <p>There is an easy way to perform a <em>reduced</em> version of
+    the verification benchmarks (taking around 30 minutes on an Intel
+    i7@3.60GHz):</p>
+
+  <pre class="code">
+sbt "pluginBenchmarks/compile"
+./scripts/collectPluginBenchmarks &gt; plugin-benchmarks.csv</pre>
+
+  <p>If you want to reproduce the full verification benchmarks, see below.</p>
+
+  <p>To view the resulting <code>plugin-benchmarks.csv</code> file, you can e.g.
+    copy&amp;paste it in <a href="http://convertcsv.com/csv-to-html.htm">http://convertcsv.com/csv-to-html.htm</a>.</p>
+
+  <h5 id="performingfullverificationbenchmarks">Performing Full Verification Benchmarks</h5>
+
+  <p>The command above produces a reduced version of the verification
+    benchmarks. The full benchmarks take around 20 hours on an
+    Intel i7@3.60GHz with 16GB of RAM. The differences are:</p>
+
+  <ul>
+    <li><p>the reduced benchmarks do not include the number of states
+	(replaced by "∞") because, to compute it, mCRL2 might require a
+	lot of RAM (often too much for a virtual machine). If you want to
+	include the number of states:</p>
+
+      <ul>
+	<li>open <code>build.sbt</code> with an editor;</li>
+
+	<li>at the end of the file, in the last occurrence
+	  of <code>pluginOpts</code>, replace the last
+	  argument <code>false</code> with <code>true</code> (for
+	  details, see the comments before the definition
+	  of <code>pluginOpts</code>);</li>
+
+	<li>execute <code>sbt "pluginBenchmarks/compile"</code> (as
+	  above);</li></ul></li>
+
+    <li><p>the reduced benchmarks do not include the two longest cases
+	(variants of Ring, 15 elements). To enable them:</p>
+
+      <ul>
+	<li>in the
+	  directory <code>plugin-benchmarks/src/main/scala/</code>,
+	  rename the files with extension <code>.scala-disabled</code>
+	  into <code>.scala</code></li>
+
+	<li>execute <code>sbt "pluginBenchmarks/compile"</code> (as
+	  above);</li></ul></li>
+
+    <li><p>the reduced benchmarks only perform 2 repetitions, instead of 10.
+	To enable and perform 10 repetitions:</p>
+
+      <ul>
+	<li>open <code>build.sbt</code> with an editor;</li>
+
+	<li>at the end of the file, in the last occurrence
+	  of <code>pluginOpts</code>, replace the
+	  argument <code>Some(2)</code> with <code>None</code> (for
+	  details, see the comments before the definition
+	  of <code>pluginOpts)</code>;</li>
+
+	<li>execute <code>sbt "pluginBenchmarks/compile"</code> (as
+	  above).</li></ul></li>
+  </ul>
+  
+  <h3 id="furtherevaluation">Further Exploration</h3>
+
+  <p>The Effpi documentation contains more information: its overall
+    architecture, and various examples (including those in the
+    paper).</p>
+
+  <p>To generate and browse the documentation, you can execute (from the
+    root of the Effpi source code):</p>
+
+  <pre class="code">
+cd docs
+make html
+firefox _build/html/index.html</pre>
+</body>
