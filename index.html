@@ -57,12 +57,16 @@
                 send/receive, their intended destination/origin, and
                 their order. For example:
                 <pre class="code">
-// Take a channel carrying strings, and use it to send either
-// "Hello" followed by "world!", or "Bye"
-type T = (x: Chan[String]) => (
+import effpi.channel.Channel
+import effpi.process.{Out, >>:}
+
+// Take two channels x and y carrying strings, and either:
+// * use x to send "Hello" followed by "world!", or
+// * use y to send "Bye"
+type T = (x: Channel[String], y: Channel[String]) => (
   (Out[x.type, "Hello"] >>: Out[x.type, "world!"])
   |
-  Out[x.type, "Bye"]
+  Out[y.type, "Bye"]
 )</pre>
               </li>
               <li>
@@ -72,23 +76,31 @@ type T = (x: Chan[String]) => (
                 compiler: if a program compiles, then it correctly
                 implements the intended type/protocol. For example:
                 <pre class="code">
-// Implement type/protocol T above (enforced by the type annot.)
-val f: T = (x: Chan[String]) => {
+import effpi.process.dsl.send
+
+// Implement type/protocol T above. The type annotation ensures that
+// the implementation abides by protocol T: e.g., sending "Bye" to x,
+// forgetting to send "Hello", or swapping the order of "Hello"/"world!"
+// all cause compile-time errors
+val f: T = (x: Channel[String], y: Channel[String]) => {
   if (...) {
     println("Sending 'Hello' and then 'world!'")
     send(x, "Hello") >>
     send(x, "world!")
   } else {
     println("Sending 'Bye'")
-    send(x, "Bye")
+    send(y, "Bye")
   }
 }</pre>
               </li>
               <li>
-                an <strong>efficient interpreter</strong> for the DSL
-                above, that can run highly concurrent applications
-                millions of interacting components (with an approach
-                reminiscent of <a href="https://akka.io/">Akka</a>);
+                an <strong>efficient interpreter</strong> for running
+                programs written in the DSL above, and in
+                an <strong>actor-based</strong> variant inspired
+                by <a href="https://doc.akka.io/docs/akka/current/typed/index.html">Akka
+                Typed</a>. The Effpi interpreter can run highly
+                concurrent applications millions of interacting
+                processes/actors;
               </li>
               <li>
                 <strong>compile-time verification of behavioural
@@ -99,15 +111,15 @@ val f: T = (x: Chan[String]) => {
                 the <a href="http://mcrl2.org">mCRL2 model
                 checker</a>. For example:
                 <pre class="code">
-// Define a bunch of protocols for multiple programs...
+// Define a bunch of protocols...
 type T1[...] = ...
 type T2[...] = ...
 
-// ...and verify whether their parallel composition ("Par")
-// and implementation ("impl") could deadlock, or not. If the
-// verification passes, then "impl" will never get stuck
+// ...and verify whether their parallel composition ("Par") and their
+// implementation ("impl") could deadlock. If the verification succeeds
+// at compile-time, then "impl" will never get stuck at run-time.
 @effpi.verify(property="deadlock_free()")
-def impl(x: Chan[...], y: Chan[...]): Par[T1, T2] = {
+def impl(x: Channel[...], y: Channel[...]): Par[T1, T2] = {
   ...
 }
 </pre>
