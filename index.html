@@ -13,10 +13,12 @@
 
     <link rel="stylesheet" href="css/normalize.min.css">
     <link rel="stylesheet" href="css/main.css">
+    <link href="prism/prism.css" rel="stylesheet" />
 
     <script src="js/vendor/modernizr-2.8.3-respond-1.4.2.min.js"></script>
   </head>
   <body>
+    <script src="prism/prism.js"></script>
     <!--[if lt IE 8]>
         <p class="browserupgrade">You are using an <strong>outdated</strong> browser. Please <a href="http://browsehappy.com/">upgrade your browser</a> to improve your experience.</p>
         <![endif]-->
@@ -56,27 +58,25 @@
                 is expected to follow: what messages it should
                 send/receive, their intended destination/origin, and
                 their order. For example:
-                <pre class="code">
-import effpi.channel.Channel
+                <pre><code class="language-scala">import effpi.channel.Channel
 import effpi.process.{Out, >>:}
 
 // Take two channels x and y carrying strings, and either:
-// * use x to send "Hello" followed by "world!", or
-// * use y to send "Bye"
+//   * use x to send "Hello" followed by "world!", or
+//   * use y to send "Bye"
 type T = (x: Channel[String], y: Channel[String]) => (
   (Out[x.type, "Hello"] >>: Out[x.type, "world!"])
   |
   Out[y.type, "Bye"]
-)</pre>
+)</code></pre>
               </li>
               <li>
                 a <strong>Domain-Specific Language</strong> for
                 writing message-passing programs with the behavioural
                 types above. The DSL is type-checked by the Dotty
-                compiler: if a program compiles, then it correctly
+                compiler - and if a program compiles, then it correctly
                 implements the intended type/protocol. For example:
-                <pre class="code">
-import effpi.process.dsl.send
+                <pre><code class="language-scala">import effpi.process.dsl.send
 
 // Implement type/protocol T above. The type annotation ensures that
 // the implementation abides by protocol T: e.g., sending "Bye" to x,
@@ -91,11 +91,11 @@ val f: T = (x: Channel[String], y: Channel[String]) => {
     println("Sending 'Bye'")
     send(y, "Bye")
   }
-}</pre>
+}</code></pre>
               </li>
               <li>
-                an <strong>efficient interpreter</strong> for running
-                programs written in the DSL above, and in
+                an <strong>efficient interpreter</strong> for running 
+                programs written either in the DSL above, or in
                 an <strong>actor-based</strong> variant inspired
                 by <a href="https://doc.akka.io/docs/akka/current/typed/index.html">Akka
                 Typed</a>. The Effpi interpreter can run highly
@@ -110,19 +110,19 @@ val f: T = (x: Channel[String], y: Channel[String]) => {
                 compiler plugin that interfaces to
                 the <a href="http://mcrl2.org">mCRL2 model
                 checker</a>. For example:
-                <pre class="code">
-// Define a bunch of protocols...
+                <pre><code class="language-scala">// Define a bunch of protocols...
 type T1[...] = ...
 type T2[...] = ...
 
-// ...and verify whether their parallel composition ("Par") and their
-// implementation ("impl") could deadlock. If the verification succeeds
-// at compile-time, then "impl" will never get stuck at run-time.
+// ...and with an "@effpi.verify(...)" annotation, check whether their
+// parallel composition ("Par") and their implementation ("impl") could
+// deadlock. If the verification succeeds at compile-time, then "impl"
+// will never get stuck at run-time.
 @effpi.verify(property="deadlock_free()")
-def impl(x: Channel[...], y: Channel[...]): Par[T1, T2] = {
+def impl(x: Channel[...], y: Channel[...]): Par[T1[...], T2[...]] = {
   ...
 }
-</pre>
+</code></pre>
               </li>
             </ol>
 
@@ -135,14 +135,14 @@ def impl(x: Channel[...], y: Channel[...]): Par[T1, T2] = {
 	          <li><strong>Papers</strong></li>
 	          <ul>
 		        <li>
-		          <a href="https://www.doc.ic.ac.uk/~ascalas/tmp/pldi19/papers/effpi-scala19.pdf">A brief
-		            overview</a> of Effpi (tool paper accepted at the
+		          <a href="https://www.doc.ic.ac.uk/~ascalas/tmp/pldi19/papers/effpi-scala19.pdf"><strong>A brief
+		              overview</strong></a> of Effpi (tool paper accepted at the
                   <a href="https://2019.ecoop.org/home/scala-2019">Scala Symposium 2019</a>);
 		        </li>
 		        <li>
 		          A. Scalas, N. Yoshida, E. Benussi.
-		          <a href="http://mrg.doc.ic.ac.uk/publications/verifying-message-passing-programs-with-dependent-behavioural-types/pldi19-preprint.pdf"><em>Verifying message-passing programs
-		              with dependent behavioural types</em></a>.
+		          <a href="http://mrg.doc.ic.ac.uk/publications/verifying-message-passing-programs-with-dependent-behavioural-types/pldi19-preprint.pdf"><em><strong>Verifying message-passing programs
+		                with dependent behavioural types</strong></em></a>.
 		          PLDI 2019.
                   This paper describes the theoretical foundations of Effpi,
                   and evaluates its implementation.
@@ -171,7 +171,7 @@ def impl(x: Channel[...], y: Channel[...]): Par[T1, T2] = {
 	        </ul>
           </section>
           <footer>
-            <h3>Authors</h3>
+            <h2>Authors</h2>
 	        <p>
 	          Effpi is developed by:
 	        </p>
