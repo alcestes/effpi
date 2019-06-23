@@ -59,48 +59,55 @@
                 send/receive, their intended destination/origin, and
                 their order. For example:
                 <pre><code class="language-scala">import effpi.channel.Channel
-import effpi.process.{Out, >>:}
+import effpi.process.{In, Out, >>:, PNil}
 
-// Take two channels x and y carrying strings, and either:
-//   * use x to send "Hello" followed by "world!", or
-//   * use y to send "Bye"
+// Take two channels x and y carrying strings; use x to receive a message;
+// then, either forward the message on y, or send "Nope" on x
 type T = (x: Channel[String], y: Channel[String]) => (
-  (Out[x.type, "Hello"] >>: Out[x.type, "world!"])
-  |
-  Out[y.type, "Bye"]
+  In[x.type, String, (msg: String) =>
+    (Out[y.type, msg.type] | Out[x.type, "Nope"])
+  ]
 )</code></pre>
               </li>
               <li>
                 a <strong>Domain-Specific Language</strong> for
                 writing message-passing programs with the behavioural
-                types above. The DSL is type-checked by the Dotty
-                compiler - and if a program compiles, then it correctly
-                implements the intended type/protocol. For example:
-                <pre><code class="language-scala">import effpi.process.dsl.send
+                types above. The DSL has two
+                flavours: <strong>process-based</strong> (see example
+                below) and <strong>actor-based</strong> (inspired
+                by <a href="https://doc.akka.io/docs/akka/current/typed/index.html">Akka
+                Typed</a>). DSL programs are type-checked by the Dotty
+                compiler - and if a program compiles, then it
+                correctly implements the intended type/protocol. For
+                example:
+                <pre><code class="language-scala">import effpi.process.dsl.{receive, send, nil}
+import scala.concurrent.duration.Duration
+
+// This implicit timeout is used by receive() below
+implicit val timeout: Duration = Duration(30, "seconds")
 
 // Implement type/protocol T above. The type annotation ensures that
-// the implementation abides by protocol T: e.g., sending "Bye" to x,
-// forgetting to send "Hello", or swapping the order of "Hello"/"world!"
-// all cause compile-time errors
+// the implementation abides by protocol T: mistakes like
+// sending something unexpected on channels x or y, or forgetting to
+// forward the message or send "Nope", all cause compile-time errors
 val f: T = (x: Channel[String], y: Channel[String]) => {
-  if (...) {
-    println("Sending 'Hello' and then 'world!'")
-    send(x, "Hello") >>
-    send(x, "world!")
-  } else {
-    println("Sending 'Bye'")
-    send(y, "Bye")
+  receive(x) { msg =>
+    println(f"Received: ${msg}")
+    if (msg.length > 42) {
+      println(f"Forwarding message via channel y")
+      send(y, msg)
+    } else {
+      println("Replying 'Nope'")
+      send(x, "Nope")
+    }
   }
 }</code></pre>
               </li>
               <li>
-                an <strong>efficient interpreter</strong> for running 
-                programs written either in the DSL above, or in
-                an <strong>actor-based</strong> variant inspired
-                by <a href="https://doc.akka.io/docs/akka/current/typed/index.html">Akka
-                Typed</a>. The Effpi interpreter can run highly
-                concurrent applications millions of interacting
-                processes/actors;
+                an <strong>efficient interpreter</strong> for running
+                programs written in the DSL abov. The Effpi
+                interpreter can run highly concurrent applications
+                millions of interacting processes/actors;
               </li>
               <li>
                 <strong>compile-time verification of behavioural
