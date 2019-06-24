@@ -59,7 +59,7 @@
                 send/receive, their intended destination/origin, and
                 their order. For example:
                 <pre><code class="language-scala">import effpi.channel.Channel
-import effpi.process.{In, Out, >>:, PNil}
+import effpi.process.{In, Out, >>:}
 
 // Take two channels x and y carrying strings; use x to receive a message;
 // then, either forward the message on y, or send "Nope" on x
@@ -80,7 +80,7 @@ type T = (x: Channel[String], y: Channel[String]) => (
                 compiler - and if a program compiles, then it
                 correctly implements the intended type/protocol. For
                 example:
-                <pre><code class="language-scala">import effpi.process.dsl.{receive, send, nil}
+                <pre><code class="language-scala">import effpi.process.dsl.{receive, send}
 import scala.concurrent.duration.Duration
 
 // This implicit timeout is used by receive() below
