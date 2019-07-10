@@ -303,13 +303,8 @@ class Verifier extends plugins.PluginPhase with plugins.StandardPlugin {
 
   val phaseName = name
 
-  // For Dotty 0.9.0-RC1
-  override val runsAfter = Set(transform.Pickler.name)
-  override val runsBefore = Set(transform.LinkAll.name)
-
-  // For Dotty 0.11.0-RC1
-  //override val runsAfter = Set(transform.Staging.name)
-  //override val runsBefore = Set(transform.FirstTransform.name)
+  override val runsAfter = Set(transform.Staging.name)
+  override val runsBefore = Set(transform.FirstTransform.name)
 
   // Names of annotation arguments.
   // NOTE: must be kept in sync with the effpi.verifier.verify annotation
@@ -406,17 +401,17 @@ class Verifier extends plugins.PluginPhase with plugins.StandardPlugin {
     if (tree.symbol.hasAnnotation(Annotation)) {
       val annotOpt = getAnnotation(tree)
       if (annotOpt.isEmpty) {
-        ctx.error("Unable to parse annotations", tree.pos)
+        ctx.error("Unable to parse annotations", tree.sourcePos)
         return tree
       }
       val annot = annotOpt.get
       val unknownArgs = annot.keySet.filter { !ARGS_SET.contains(_) }
       if (!unknownArgs.isEmpty) {
-        ctx.error(s"Invalid annotation arguments: ${unknownArgs}", tree.pos)
+        ctx.error(s"Invalid annotation arguments: ${unknownArgs}", tree.sourcePos)
         return tree
       }
       if (!annot.keySet.contains(ARG_PROPERTY)) {
-        ctx.error("No property has been specified", tree.pos)
+        ctx.error("No property has been specified", tree.sourcePos)
         return tree
       }
       val propStr = annot(ARG_PROPERTY)
@@ -456,7 +451,7 @@ class Verifier extends plugins.PluginPhase with plugins.StandardPlugin {
       val specName: String = annot.getOrElse(ARG_SPEC_NAME, "spec")
 
       // When benchmarking, we do not remove the temporary dir
-      val options = Options(tree.pos, optKeepTmp || (benchmarkReps > 0),
+      val options = Options(tree.sourcePos, optKeepTmp || (benchmarkReps > 0),
                             specName,
                             optBenchOverride.getOrElse(benchmarkReps),
                             isBigLTS || optSkipLts,
@@ -465,7 +460,7 @@ class Verifier extends plugins.PluginPhase with plugins.StandardPlugin {
       val prop = mcrl2.Property.apply(propStr, observables, options)
 
       if (prop.isLeft) {
-        ctx.error(s"Property error: ${prop.left.get}", tree.pos)
+        ctx.error(s"Property error: ${prop.left.get}", tree.sourcePos)
         return tree
       }
 
@@ -484,12 +479,12 @@ class Verifier extends plugins.PluginPhase with plugins.StandardPlugin {
 
       simplify(tpe) match {
         case None => {
-          ctx.warning(s"Unable to simplify: ${toString(tpe)}", tree.pos)
+          ctx.warning(s"Unable to simplify: ${toString(tpe)}", tree.sourcePos)
         }
         case Some(s) => {
           ctx.log(s"Simplified type:\n${s}")  
           toBehType(s) match {
-            case None => ctx.warning(s"Unable to determine behavioural type from: ${toString(tpe)}", tree.pos)
+            case None => ctx.warning(s"Unable to determine behavioural type from: ${toString(tpe)}", tree.sourcePos)
             case Some(b) => {
               ctx.log(s"Behavioral type:\n${b}")
               val fullObs = obs ++ b.mailboxes // We also observe all mailboxes
@@ -498,7 +493,7 @@ class Verifier extends plugins.PluginPhase with plugins.StandardPlugin {
               assert(fullObs.forall { o => fullEnv.contains(o) } )
               ccst.CCST(b, fullObs, fullEnv, Set()) match {
                 case None => {
-                  ctx.warning(s"Unable to determine CCST spec from: ${toString(tpe)}", tree.pos)
+                  ctx.warning(s"Unable to determine CCST spec from: ${toString(tpe)}", tree.sourcePos)
                 }
                 case Some(rawccs0) => {
                   ctx.log(s"CCST spec:\n${rawccs0}")
@@ -529,7 +524,7 @@ class Verifier extends plugins.PluginPhase with plugins.StandardPlugin {
                     }
                     case Right(res) => {
                       if (!res) {
-                        ctx.warning(s"The property does not hold", tree.pos)
+                        ctx.warning(s"The property does not hold", tree.sourcePos)
                       }
                     }
                   }

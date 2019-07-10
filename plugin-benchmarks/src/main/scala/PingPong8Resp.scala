@@ -11,7 +11,7 @@ import effpi.verifier.{verify, pbessolve, pbes2bool_breadth, pbes2bool_depth}
 
 /** Ping-pong (10 pairs, responsive) verification benchmark. */
 package object pingpong8resp {
-  import effpi.plugin.benchmarks.pingpong6resp.{ChanA, ChanB, PingPong, PingPongSys}
+  import effpi.plugin.benchmarks.pingpong6resp.{ChanA, ChanB, PingPong}
   
   type PingPongSys[C1A <: ChanA,  C1B <: ChanB,
                    C2A <: ChanA,  C2B <: ChanB,
