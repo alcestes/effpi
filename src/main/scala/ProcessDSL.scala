@@ -154,7 +154,7 @@ package object dsl {
   *
   * This is an experimental type, with the goal of modelling the
   * [[https://doc.akka.io/docs/akka/2.5/actors.html#ask-send-and-receive-future "ask pattern"]]. */
-  type Yielding[A, P <: Process] = given YieldCtx[A] => P
+  type Yielding[A, P <: Process] = implicit YieldCtx[A] => P
 
   /** Do nothing (inactive process). */
   case object nil extends PNil
@@ -266,7 +266,7 @@ package object dsl {
   * This is an experimental method, that can only be invoked within a process
   * typed by [[Yielding]]. Its goal is to capture the
   * [[https://doc.akka.io/docs/akka/2.5/actors.html#ask-send-and-receive-future "ask pattern"]]. */
-  def pyield[A](v: A): given YieldCtx[A] => Yield[A] = {
+  def pyield[A](v: A): implicit YieldCtx[A] => Yield[A] = {
     Yield[A](v)(Some(implicitly[YieldCtx[A]]))
   }
 

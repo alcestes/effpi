@@ -12,15 +12,15 @@ import effpi.process.dsl._
 import effpi.verifier.verify
 
 package object types {
-  type Pinger = [P <: Chan[String], C <: OChan[P]] =>> (
+  type Pinger = [P <: Chan[String], C <: OChan[P]] => (
     Out[C, P] >>: In[P, String, (x: String) => PNil]
   )
 
-  type Ponger = [C <: IChan[OChan[String]]] =>> (
+  type Ponger = [C <: IChan[OChan[String]]] => (
     In[C, OChan[String], (x: OChan[String]) => Out[x.type, String]]
   )
 
-  type PingPong = [P1 <: Chan[OChan[String]], P2 <: Chan[String]] =>> (
+  type PingPong = [P1 <: Chan[OChan[String]], P2 <: Chan[String]] => (
     Par[Ponger[P1], Pinger[P2, P1]]
   )
 }

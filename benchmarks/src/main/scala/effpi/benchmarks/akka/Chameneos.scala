@@ -114,10 +114,10 @@ object Chameneos {
 
   def mutatedColour(colourA: Colour, colourB: Colour) = {
     if (colourA != colourB) {
-      (colourA.ordinal + colourB.ordinal) match {
-        case 1 => Colour.values(2)
-        case 2 => Colour.values(1)
-        case 3 => Colour.values(0)
+      (colourA.enumTag + colourB.enumTag) match {
+        case 1 => Colour.enumValue(2)
+        case 2 => Colour.enumValue(1)
+        case 3 => Colour.enumValue(0)
       }
     } else {
       colourA
@@ -142,7 +142,7 @@ object Chameneos {
       ctx.watch(serverRef)
 
       val r = new scala.util.Random(99)
-      val colours = (1 to numChameneos).toList.map { _ => Colour.values(r.nextInt(3)) }
+      val colours = (1 to numChameneos).toList.map { _ => Colour.enumValue(r.nextInt(3)) }
 
       val chameneosRefs = colours.zipWithIndex.map { (colour, id) =>
         ctx.spawn(chameneos(serverRef, colour, id), "chameneos" + id)
