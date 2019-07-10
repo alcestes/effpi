@@ -1,6 +1,5 @@
-val dottyVersion = "0.9.0"
-//val dottyVersion = "0.11.0-RC1"
-val effpiVersion = "0.0.2"
+val dottyVersion = "0.16.0-RC3"
+val effpiVersion = "0.0.3"
 
 lazy val effpi = (project in file(".")).
   settings(
@@ -8,17 +7,7 @@ lazy val effpi = (project in file(".")).
     version := effpiVersion,
 
     scalaVersion := dottyVersion,
-    //addCompilerPlugin("uk.ac.ic" %% "effpi-verifier" % "0.0.1"),
-  )
-
-lazy val demo = project
-  .in(file("demo"))
-  .dependsOn(effpi)
-  //.dependsOn(plugin)
-  .settings(
-    name := "effpi-demo",
-    version := effpiVersion,
-    scalaVersion := dottyVersion,
+    //addCompilerPlugin("uk.ac.ic" %% "effpi-verifier" % "0.0.3"),
   )
 
 lazy val plugin = project
@@ -32,7 +21,7 @@ lazy val plugin = project
     // TODO: exclude unnecessary dependencies from assembly jar
     libraryDependencies ++= Seq(
       "ch.epfl.lamp" %% "dotty-compiler" % scalaVersion.value % "provided",
-      "org.scala-lang.modules" % "scala-parser-combinators_2.12" % "1.1.1",
+      "org.scala-lang.modules" % "scala-parser-combinators_2.12" % "1.1.2",
       "org.clapper" % "scalasti_2.12" % "3.0.1"
     ),
   )
@@ -51,8 +40,8 @@ lazy val benchmarks = project
     ),
 
     libraryDependencies ++= Seq(
-      "org.scalikejdbc" % "scalikejdbc_2.12" % "3.3.1",
-      "org.xerial"      % "sqlite-jdbc"      % "3.23.1",
+      "org.scalikejdbc" % "scalikejdbc_2.12" % "3.3.5",
+      "org.xerial"      % "sqlite-jdbc"      % "3.28.0",
       "ch.qos.logback"  % "logback-classic"  % "1.2.3"
     ),
 
@@ -126,7 +115,7 @@ lazy val examples = project
     name := "effpi-examples",
     version := effpiVersion,
     scalaVersion := dottyVersion,
-    scalacOptions ++= pluginOpts(false, false).value,
+    //scalacOptions ++= pluginOpts(false, false).value,
   )
 
 lazy val pluginBenchmarks = project
@@ -136,5 +125,5 @@ lazy val pluginBenchmarks = project
     name := "effpi-plugin-benchmarks",
     version := effpiVersion,
     scalaVersion := dottyVersion,
-    scalacOptions ++= pluginOpts(false, false, true, Some(2)).value,
+    scalacOptions ++= pluginOpts(false, false, true, Some(-1)).value,
   )

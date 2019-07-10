@@ -31,10 +31,10 @@ object Main {
     singleLineMode = false,
     printUnprocessedStackTrace = false,
     stackTraceDepth= 15,
-    logLevel = 'warn,
+    logLevel = Symbol("warn"),
     warningEnabled = false,
     warningThresholdMillis = 3000L,
-    warningLogLevel = 'warn
+    warningLogLevel = Symbol("warn")
   )
 
   // Output file
