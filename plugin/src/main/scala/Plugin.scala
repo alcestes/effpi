@@ -5,8 +5,6 @@ package effpi.verifier
 
 import scala.language.implicitConversions
 
-import dotty.tools.dotc.transform
-
 import dotty.tools.dotc.core.{Names, Types, TypeApplications}
 import dotty.tools.dotc.core.Contexts.Context
 import dotty.tools.dotc.core.Phases.Phase
@@ -303,8 +301,8 @@ class Verifier extends plugins.PluginPhase with plugins.StandardPlugin {
 
   val phaseName = name
 
-  override val runsAfter = Set(transform.Staging.name)
-  override val runsBefore = Set(transform.FirstTransform.name)
+  override val runsAfter = Set(dotty.tools.dotc.typer.FrontEnd.name)
+  // override val runsBefore = Set(transform.FirstTransform.name)
 
   // Names of annotation arguments.
   // NOTE: must be kept in sync with the effpi.verifier.verify annotation
