@@ -125,10 +125,10 @@ object Chameneos {
 
   def mutatedColour(colourA: Colour, colourB: Colour) = {
     if (colourA != colourB) {
-      (colourA.enumTag + colourB.enumTag) match {
-        case 1 => Colour.enumValue(2)
-        case 2 => Colour.enumValue(1)
-        case 3 => Colour.enumValue(0)
+      (colourA.ordinal + colourB.ordinal) match {
+        case 1 => Colour.values(2)
+        case 2 => Colour.values(1)
+        case 3 => Colour.values(0)
       }
     } else {
       colourA
@@ -153,7 +153,7 @@ object Chameneos {
 
     val serverRef = Actor.spawn(server(numMeetings, numChameneos)(startTimeFuture, endTimePromise))
     val r = new scala.util.Random(99)
-    val colours = (1 to numChameneos).toArray.map { _ => Colour.enumValue(r.nextInt(3)) }
+    val colours = (1 to numChameneos).toArray.map { _ => Colour.values(r.nextInt(3)) }
     colours.map { colour => Actor.spawn(chameneos(serverRef)(colour)) }
 
     startTimePromise.success(System.nanoTime())

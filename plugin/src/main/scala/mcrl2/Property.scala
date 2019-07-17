@@ -13,7 +13,6 @@ import scala.language.implicitConversions
 import scala.util.parsing.combinator._
 
 import dotty.tools.dotc.core.Contexts.Context
-import dotty.tools.dotc.util.Positions.Position
 
 /** A raw property produced by parsing. */
 private sealed abstract class RawProperty
