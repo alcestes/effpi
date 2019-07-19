@@ -1,6 +1,13 @@
 val dottyVersion = "0.16.0-RC3"
 val effpiVersion = "0.0.3"
 
+val useEffpiPlugin = settingKey[Boolean]("Use the effpi compiler plugin in sub-projects.")
+
+inThisBuild(
+  // Can be changed from sbt by running `set ThisBuild / useEffpiPlugin := false`
+  useEffpiPlugin := true
+)
+
 lazy val effpi = (project in file(".")).
   settings(
     name := "effpi",
@@ -21,8 +28,8 @@ lazy val plugin = project
     // TODO: exclude unnecessary dependencies from assembly jar
     libraryDependencies ++= Seq(
       "ch.epfl.lamp" %% "dotty-compiler" % scalaVersion.value % "provided",
-      "org.scala-lang.modules" % "scala-parser-combinators_2.12" % "1.1.2",
-      "org.clapper" % "scalasti_2.12" % "3.0.1"
+      ("org.scala-lang.modules" %% "scala-parser-combinators" % "1.1.2").withDottyCompat(scalaVersion.value),
+      ("org.clapper" %% "scalasti" % "3.0.1").withDottyCompat(scalaVersion.value)
     ),
   )
 
@@ -35,12 +42,12 @@ lazy val benchmarks = project
     scalaVersion := dottyVersion,
 
     libraryDependencies ++= Seq(
-        ("com.typesafe.akka" % "akka-actor-typed_2.12" % "2.5.17").
+        ("com.typesafe.akka" %% "akka-actor-typed" % "2.5.17").withDottyCompat(scalaVersion.value).
         exclude("org.scala-lang.modules", "scala-java8-compat_2.12")
     ),
 
     libraryDependencies ++= Seq(
-      "org.scalikejdbc" % "scalikejdbc_2.12" % "3.3.5",
+      ("org.scalikejdbc" %% "scalikejdbc" % "3.3.5").withDottyCompat(scalaVersion.value),
       "org.xerial"      % "sqlite-jdbc"      % "3.28.0",
       "ch.qos.logback"  % "logback-classic"  % "1.2.3"
     ),
@@ -64,47 +71,53 @@ def pluginOpts(verbose: Boolean, keepTmp: Boolean,
                skipLts: Boolean = false,
                benchmarkOverride: Option[Int] = None) = {
   val pluginName = "effpiVerifier"
-  
-  // Uncomment (and comment line below) to change the task providing `jar`.
-  // NOTE: since the plugin has external dependencies, we need a fat jar
-  // (Keys.`package` in (plugin, Compile)) map { (jar: File) =>
-  (`assemblyOutputPath` in (plugin, assembly)) map { (jar: File) =>
-    val addPlugin = s"-Xplugin:${jar.getAbsolutePath}"
 
-    // Option to enable verbose logging
-    val loggingOpt = s"-Ylog:${pluginName}+"
-    
-    // Option for *not* removing temporary files
-    val keepTmpOpt = "keep-tmp"
+  Def.taskDyn {
+    if (useEffpiPlugin.value) {
+      // Uncomment (and comment line below) to change the task providing `jar`.
+      // NOTE: since the plugin has external dependencies, we need a fat jar
+      // (Keys.`package` in (plugin, Compile)) map { (jar: File) =>
+      (`assemblyOutputPath` in (plugin, assembly)) map { (jar: File) =>
+        val addPlugin = s"-Xplugin:${jar.getAbsolutePath}"
 
-    // Option for overriding benchmark repetitions
-    val benchOverrideOpt = "bench-override"
+        // Option to enable verbose logging
+        val loggingOpt = s"-Ylog:${pluginName}+"
 
-    // Option for never generating LTSs:
-    val skipLtsOpt = "skip-lts"
-    
-    // Hack taken from https://github.com/retronym/boxer
-    // Adding the plugin timestamp to compiler options triggers recompilation
-    // after editing the plugin (otherwise, a manual 'clean' is needed).
-    // NOTE: this dependency works with Compile, but not with assembly :-\
-    val dummyOpt = s"timestamp=${jar.lastModified}"
-    
-    val opts = {
-      Seq(s"${pluginName}:${dummyOpt}") ++
-      (if (keepTmp) Seq(s"${pluginName}:${keepTmpOpt}") else Seq()) ++
-      (if (skipLts) Seq(s"${pluginName}:${skipLtsOpt}") else Seq()) ++
-      (benchmarkOverride match {
-        case None => Seq()
-        case Some(n) => {
-          assert((n >= 0) || (n == -1))
-          Seq(s"${pluginName}:${benchOverrideOpt}=${n}")
+        // Option for *not* removing temporary files
+        val keepTmpOpt = "keep-tmp"
+
+        // Option for overriding benchmark repetitions
+        val benchOverrideOpt = "bench-override"
+
+        // Option for never generating LTSs:
+        val skipLtsOpt = "skip-lts"
+
+        // Hack taken from https://github.com/retronym/boxer
+        // Adding the plugin timestamp to compiler options triggers recompilation
+        // after editing the plugin (otherwise, a manual 'clean' is needed).
+        // NOTE: this dependency works with Compile, but not with assembly :-\
+        val dummyOpt = s"timestamp=${jar.lastModified}"
+
+        val opts = {
+          Seq(s"${pluginName}:${dummyOpt}") ++
+          (if (keepTmp) Seq(s"${pluginName}:${keepTmpOpt}") else Seq()) ++
+          (if (skipLts) Seq(s"${pluginName}:${skipLtsOpt}") else Seq()) ++
+          (benchmarkOverride match {
+            case None => Seq()
+            case Some(n) => {
+              assert((n >= 0) || (n == -1))
+              Seq(s"${pluginName}:${benchOverrideOpt}=${n}")
+            }
+          })
+        }.mkString(",")
+
+        Seq(addPlugin) ++ Seq(s"-P:${opts}") ++ {
+          if (verbose) Seq(loggingOpt) else Seq()
         }
-      })
-    }.mkString(",")
-
-    Seq(addPlugin) ++ Seq(s"-P:${opts}") ++ {
-      if (verbose) Seq(loggingOpt) else Seq()
+      }
     }
+    else
+      Def.task(Seq[String]())
   }
 }
 
