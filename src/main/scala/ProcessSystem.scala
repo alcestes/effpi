@@ -8,9 +8,7 @@ import java.util.concurrent.Executors
 import scala.util.{Failure, Success, Try}
 import scala.concurrent.duration.Duration
 
-import effpi.channel.{AsyncInChannel => InChannel,
-                      AsyncOutChannel => OutChannel,
-                      ChannelStatus}
+import effpi.channel.{InChannel, OutChannel, ChannelStatus}
 
 trait ProcessSystem {
 

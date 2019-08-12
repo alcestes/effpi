@@ -8,9 +8,7 @@ import java.lang.Runnable
 import scala.util.{Failure, Success, Try}
 import scala.concurrent.duration.Duration
 
-import effpi.channel.{AsyncInChannel => InChannel,
-                      AsyncOutChannel => OutChannel,
-                      ChannelStatus}
+import effpi.channel.{InChannel, OutChannel, ChannelStatus}
 
 protected[system] class InputExecutor(ps: ProcessSystem, stepsLeft: Int = 10) extends Runnable {
 
@@ -55,24 +53,24 @@ protected[system] class InputExecutor(ps: ProcessSystem, stepsLeft: Int = 10) ex
       val (env, lp, p) = proc
       p match {
         case i: In[_,_,_] =>
-          i.channel.async.poll() match {
+          i.channel.poll() match {
             case Some(v) =>
               val cont = i.cont.asInstanceOf[Any => Process](v)
               ps match {
                 case _: ProcessSystemRunnerImproved =>
                   ()
                 case _: ProcessSystemStateMachineMultiStep =>
-                  ps.forceSchedule(i.channel.async)
+                  ps.forceSchedule(i.channel)
               }
               multiInEval((env, lp, cont), stepsLeft - 1)
             case None =>
-              i.channel.async.enqueue((env, lp, i.asInstanceOf[In[InChannel[Any], Any, Any => Process]]))
+              i.channel.enqueue((env, lp, i.asInstanceOf[In[InChannel[Any], Any, Any => Process]]))
 
               ps match {
                 case _: ProcessSystemRunnerImproved =>
                   ()
                 case _: ProcessSystemStateMachineMultiStep =>
-                  ps.smartUnschedule(i.channel.async)
+                  ps.smartUnschedule(i.channel)
               }
           }
         case o: Out[_,_] =>

@@ -139,6 +139,7 @@ package object implementation {
              p3: Chan[Unit], d3: Chan[Unit]): Dining[p1.type, d1.type,
                                                      p2.type, d2.type,
                                                      p3.type, d3.type] = {
+    println("Dining philosophers - deadlocking implementation")
     par(philo("Socrates", p3, d3, p1, d1),
        fork(1, p1, d1),
        philo("Aristotle", p1, d1, p2, d2),
@@ -173,6 +174,7 @@ package object implementation {
                p3: Chan[Unit], d3: Chan[Unit]): DiningDF[p1.type, d1.type,
                                                          p2.type, d2.type,
                                                          p3.type, d3.type] = {
+    println("Dining philosophers - deadlock-free implementation")
     par(philo("Socrates", p1, d1, p3, d3),
         fork(1, p1, d1),
         philo("Aristotle", p1, d1, p2, d2),
