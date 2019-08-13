@@ -53,9 +53,17 @@ protected[system] class InputExecutor(ps: ProcessSystem, stepsLeft: Int = 10) ex
       val (env, lp, p) = proc
       p match {
         case i: In[_,_,_] =>
-          i.channel.poll() match {
+          val ic = i.channel
+          ic.poll() match {
             case Some(v) =>
-              val cont = i.cont.asInstanceOf[Any => Process](v)
+              val cont = if (ic.synchronous) {
+                // We received a tuple containing a value and an ack channel
+                val (v2, ack) = v.asInstanceOf[Tuple2[Any, OutChannel[Unit]]]
+                ack.send(()) 
+                i.cont.asInstanceOf[Any => Process](v2)
+              } else {
+                i.cont.asInstanceOf[Any => Process](v)
+              }
               ps match {
                 case _: ProcessSystemRunnerImproved =>
                   ()
@@ -75,7 +83,15 @@ protected[system] class InputExecutor(ps: ProcessSystem, stepsLeft: Int = 10) ex
           }
         case o: Out[_,_] =>
           val outCh = o.channel.asInstanceOf[OutChannel[Any]]
-          outCh.send(o.v)
+          val ack: Option[InChannel[Unit]] = if (outCh.synchronous) {
+            // Send an ack channel together with the value
+            val ack = outCh.create[Unit](false) // The ack channel *must* be async
+            outCh.send((o.v, ack.out))
+            Some(ack.in)
+          } else {
+            outCh.send(o.v)
+            None
+          }
           val inCh = outCh.dualIn
           ps match {
             case _: ProcessSystemRunnerImproved =>
@@ -83,11 +99,21 @@ protected[system] class InputExecutor(ps: ProcessSystem, stepsLeft: Int = 10) ex
             case _: ProcessSystemStateMachineMultiStep =>
               ps.smartEnqueue(inCh)
           }
-          lp match {
-            case Nil =>
-              ()
-            case lh :: lt =>
-              multiInEval((env, lt, lh()), stepsLeft - 1)
+          ack match {
+            case Some(inc) => {
+              // We must now reschedule ourselves, while we wait for an ack
+              // FIXME: allow to specify timeouts
+              import effpi.process.dsl.{receive, nil}
+              import concurrent.duration.Duration.Inf
+              multiInEval((env, lp, receive(inc){ _ => nil }(Inf)),
+                          stepsLeft - 1)
+            }
+            case _ /* None */ => {
+              lp match {
+                case Nil => ()
+                case lh :: lt => multiInEval((env, lt, lh()), stepsLeft - 1)
+              }
+            }
           }
         case f: Fork[_] =>
           // TODO: this always gives the same order? this may or may not be a problem
