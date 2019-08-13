@@ -5,9 +5,9 @@ package effpi.actor
 
 import java.util.concurrent.atomic.AtomicInteger
 
-import scala.concurrent.{ Future, Promise, Await }
+import scala.concurrent.{Future, Promise, Await}
 
-import effpi.channel.{InChannel, OutChannel, Pipe, QueueChannel}
+import effpi.channel.{Channel, InChannel, OutChannel, QueueChannel}
 import effpi.process.{ProcVar, Process, In}
 import effpi.system._
 import scala.concurrent.duration.Duration
@@ -44,21 +44,30 @@ private class ActorRefImpl[A](c: OutChannel[A])
   }
 }
 
-protected[actor] abstract class ActorPipe[A](val mbox: Mailbox[A],
-                                             val ref: ActorRef[A]) extends Pipe[A](mbox, ref)
+protected[actor] abstract class ActorChannel[A] extends Channel[A] {
+  val mbox: Mailbox[A]
+  val ref: ActorRef[A]
+}
 
-private class ActorPipeImpl[A](override val mbox: Mailbox[A],
-                               override val ref: ActorRef[A]) extends ActorPipe[A](mbox, ref) {
+private class ActorChannelImpl[A](override val mbox: Mailbox[A],
+                                  override val ref: ActorRef[A])
+  extends ActorChannel[A] {
     assert(mbox.synchronous == ref.synchronous)
     override val synchronous: Boolean = mbox.synchronous
-  }
+}
 
-object ActorPipe {
-  def apply[A](): ActorPipe[A] = {
-    val p = QueueChannel.pipe[A]
+object ActorChannel {
+  /** Create a synchronous `ActorChannel`. */
+  def apply[A](): ActorChannel[A] = apply(true)
+  
+  /** Create an asynchronous `ActorChannel`. */
+  def async[A](): ActorChannel[A] = apply(false)
+  
+  def apply[A](synchronous: Boolean): ActorChannel[A] = {
+    val p = QueueChannel.apply[A](synchronous)
     val mbox = new MailboxImpl(p.in)
     val ref = new ActorRefImpl(p.out)(Some(mbox))
-    new ActorPipeImpl(mbox, ref)
+    new ActorChannelImpl(mbox, ref)
   }
 }
 
@@ -79,7 +88,7 @@ object patterns {
     val respPromise = Promise[Resp]()
     val respFuture = respPromise.future
 
-    val pipe = ActorPipe[Resp]()
+    val pipe = ActorChannel[Resp]()
     val askProcess = {
       pdsl.send(srv, query(pipe.ref)) >>
       pdsl.receive(pipe.mbox) { msg: Resp =>

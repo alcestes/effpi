@@ -54,11 +54,29 @@ trait OutChannel[-A] {
 abstract class Channel[A] extends InChannel[A] with OutChannel[A] {
   /** Is this channel synchronous? */
   override val synchronous: Boolean
+
+  // Methods declared in InChannel
+  override def receive()(implicit timeout: Duration) = in.receive()(timeout)
+  override def dequeue() = in.dequeue()
+  override def enqueue(i: (Map[ProcVar[_], (_) => Process], List[() => Process], In[InChannel[Any], Any, Any => Process])) = in.enqueue(i)
+  override def poll() = in.poll()
+
+  // Methods declared in OutChannel
+  override def send(v: A) = out.send(v)
+  override val dualIn = out.dualIn
 }
 
 object Channel {
   /** Return a synchronous channel. */
-  def apply[A](): Channel[A] = QueueChannel.pipe[A](true)
+  def apply[A](): Channel[A] = QueueChannel.apply[A]()
+
+  /** Return an asynchronous channel: what is written on the `out` endpoint
+    * can be received from the `in` endpoint. */
+  def async[A](): Channel[A] = QueueChannel.async[A]()
+
+  /** Return two paired asynchronous channels: what is sent on one can be
+    *  received from the other. */
+  def pair[A](): (Channel[A], Channel[A]) = QueueChannel.pair[A](true)
 }
 
 trait QueueInChannel[+A](q: LTQueue[A]) extends InChannel[A] {
@@ -88,7 +106,6 @@ trait QueueInChannel[+A](q: LTQueue[A]) extends InChannel[A] {
     case null => None
     case head => Some(head)
   }
-
 }
 
 trait QueueOutChannel[-A](q: LTQueue[A])
@@ -104,52 +121,50 @@ trait QueueOutChannel[-A](q: LTQueue[A])
 }
 
 //TODO: may not want to pass None here for the outqueue
-class QueueChannel[A](q1: LTQueue[A], q2: LTQueue[A],
-                      override val synchronous: Boolean)
-                     (maybeDual: Option[QueueChannel[A]])
-  extends Channel[A] with QueueInChannel(q1)
-                     with QueueOutChannel(q2)(None) {
+class QueueChannel[A](override val in: QueueInChannel[A],
+                      override val out: QueueOutChannel[A])
+  extends Channel[A] {
+  assert(in.synchronous == out.synchronous)
+  override val synchronous = in.synchronous
 }
 
 object QueueChannel {
-  def pipe[A]: Pipe[A] = pipe[A](false)
+  /** Return a synchronous queue-based channel. */
+  def apply[A](): QueueChannel[A] = apply[A](false)
+
+  /** Return an asynchronous queue-based channel. */
+  def async[A](): QueueChannel[A] = apply[A](true)
   
-  def pipe[A](synchronous: Boolean): Pipe[A] = {
-    val q = new LTQueue[A]
+  /** Return a synchronous or asynchronous queue-based channel. */
+  def apply[A](synchronous: Boolean): QueueChannel[A] = {
+    val q = LTQueue[A]()
     val in = new QueueInChannel(q) {
       override val synchronous: Boolean = synchronous
     }
     val out = new QueueOutChannel(q)(Some(in)) {
       override val synchronous: Boolean = synchronous
     }
-    new PipeImpl[A](in, out)
+    new QueueChannel[A](in, out)
   }
 
-  def apply[A](synchronous: Boolean): QueueChannel[A] = {
-    apply(LTQueue[A](), LTQueue[A](), synchronous)
-  }
+  /** Return two paired asynchronous queue-based channels: what is sent on one
+    * can be received from the other. */
+  def pair[A](synchronous: Boolean): (QueueChannel[A], QueueChannel[A]) = {
+    val q1 = LTQueue[A]()
+    val q2 = LTQueue[A]()
+    val in1 = new QueueInChannel(q1) {
+      override val synchronous: Boolean = synchronous
+    }
+    val out1 = new QueueOutChannel(q1)(Some(in1)) {
+      override val synchronous: Boolean = synchronous
+    }
+    val in2 = new QueueInChannel(q2) {
+      override val synchronous: Boolean = synchronous
+    }
+    val out2 = new QueueOutChannel(q2)(Some(in2)) {
+      override val synchronous: Boolean = synchronous
+    }
 
-  def apply[A](q1: LTQueue[A], q2: LTQueue[A], synchronous: Boolean) = {
-    new QueueChannel(q1, q2, synchronous)(None)
+    (new QueueChannel[A](in1, out2), new QueueChannel[A](in2, out1))
   }
 }
-
-abstract class Pipe[A](override val in: InChannel[A],
-                       override val out: OutChannel[A])
-  extends Channel[A] {
-  // Members declared in InChannel
-  override def receive()(implicit timeout: Duration) = in.receive()(timeout)
-  override def dequeue() = in.dequeue()
-  override def enqueue(i: (Map[ProcVar[_], (_) => Process], List[() => Process], In[InChannel[Any], Any, Any => Process])) = in.enqueue(i)
-  override def poll() = in.poll()
-
-  // Members declared in OutChannel
-  override def send(v: A) = out.send(v)
-  override val dualIn = out.dualIn
-}
-
-private class PipeImpl[A](in: InChannel[A], out: OutChannel[A])
-  extends Pipe[A](in, out) {
-    assert(in.synchronous == out.synchronous)
-    override val synchronous: Boolean = in.synchronous
-  }

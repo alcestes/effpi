@@ -198,7 +198,7 @@ object Main {
     eval(
       // Here we can test dining() or diningDF() above
       // NOTE: diningDF() will timeout after 30 seconds after getting stuck
-      dining(c1pick, c1drop, c2pick, c2drop, c3pick, c3drop)
+      diningDF(c1pick, c1drop, c2pick, c2drop, c3pick, c3drop)
     )
   }
 }

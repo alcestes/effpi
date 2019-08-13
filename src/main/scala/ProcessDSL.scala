@@ -298,7 +298,7 @@ package object dsl {
       val oc = o.channel.asInstanceOf[OutChannel[Any]]
       if (oc.synchronous) {
         // Send an ack channel together with the value
-        val ack = QueueChannel.pipe[Unit]
+        val ack = QueueChannel.apply[Unit]()
         oc.send((o.v, ack.out))
         // FIXME: allow to specify timeouts
         ack.in.receive()(concurrent.duration.Duration.Inf)
