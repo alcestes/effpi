@@ -42,6 +42,10 @@ private class ActorRefImpl[A](c: OutChannel[A])
     case None => new MailboxImpl(c.dualIn)
     case Some(d) => d
   }
+
+  override def create[B](synchronous: Boolean): Channel[B] = {
+    c.create[B](synchronous)
+  }
 }
 
 protected[actor] abstract class ActorChannel[A] extends Channel[A] {

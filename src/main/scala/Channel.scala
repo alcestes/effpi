@@ -48,6 +48,14 @@ trait OutChannel[-A] {
 
   /** Send value `v` through the channel. */
   def send(v: A): Unit
+
+  /** Return a new channel with the same characteristics (e.g., same message
+    * transport, synchronous or asynchronous,...). */
+  def create[B](): Channel[B] = create[B](this.synchronous)
+
+  /** Return a new channel with the same characteristics (e.g., same message
+    * transport,...), and the given synchronous/asynchronpus behaviour. */
+  def create[B](synchronous: Boolean): Channel[B]
 }
 
 /** A channel that can be used to send and receive values of type `A`. */
@@ -64,6 +72,9 @@ abstract class Channel[A] extends InChannel[A] with OutChannel[A] {
   // Methods declared in OutChannel
   override def send(v: A) = out.send(v)
   override val dualIn = out.dualIn
+  override def create[B](synchronous: Boolean): Channel[B] = {
+    out.create[B](synchronous)
+  }
 }
 
 object Channel {
@@ -117,6 +128,10 @@ trait QueueOutChannel[-A](q: LTQueue[A])
       override val synchronous: Boolean = this.synchronous
     }
     case Some(d) => d
+  }
+
+  override def create[B](synchronous: Boolean): QueueChannel[B] = {
+    QueueChannel.apply(synchronous)
   }
 }
 
