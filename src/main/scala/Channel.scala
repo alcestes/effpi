@@ -55,7 +55,7 @@ trait OutChannel[-A] {
 
   /** Return a new channel with the same characteristics (e.g., same message
     * transport,...), and the given synchronous/asynchronpus behaviour. */
-  def create[B](synchronous: Boolean): Channel[B]
+  def create[B](synch: Boolean): Channel[B]
 }
 
 /** A channel that can be used to send and receive values of type `A`. */
@@ -72,8 +72,8 @@ abstract class Channel[A] extends InChannel[A] with OutChannel[A] {
   // Methods declared in OutChannel
   override def send(v: A) = out.send(v)
   override val dualIn = out.dualIn
-  override def create[B](synchronous: Boolean): Channel[B] = {
-    out.create[B](synchronous)
+  override def create[B](synch: Boolean): Channel[B] = {
+    out.create[B](synch)
   }
 }
 
@@ -86,8 +86,8 @@ object Channel {
   def async[A](): Channel[A] = QueueChannel.async[A]()
 
   /** Return two paired asynchronous channels: what is sent on one can be
-    *  received from the other. */
-  def pair[A](): (Channel[A], Channel[A]) = QueueChannel.pair[A](true)
+    * received from the other. */
+  def pair[A](): (Channel[A], Channel[A]) = QueueChannel.pair[A]()
 }
 
 trait QueueInChannel[+A](q: LTQueue[A]) extends InChannel[A] {
@@ -130,8 +130,8 @@ trait QueueOutChannel[-A](q: LTQueue[A])
     case Some(d) => d
   }
 
-  override def create[B](synchronous: Boolean): QueueChannel[B] = {
-    QueueChannel.apply(synchronous)
+  override def create[B](synch: Boolean): QueueChannel[B] = {
+    QueueChannel.apply(synch)
   }
 }
 
@@ -145,39 +145,39 @@ class QueueChannel[A](override val in: QueueInChannel[A],
 
 object QueueChannel {
   /** Return a synchronous queue-based channel. */
-  def apply[A](): QueueChannel[A] = apply[A](false)
+  def apply[A](): QueueChannel[A] = apply[A](true)
 
   /** Return an asynchronous queue-based channel. */
-  def async[A](): QueueChannel[A] = apply[A](true)
+  def async[A](): QueueChannel[A] = apply[A](false)
   
   /** Return a synchronous or asynchronous queue-based channel. */
-  def apply[A](synchronous: Boolean): QueueChannel[A] = {
+  def apply[A](synch: Boolean): QueueChannel[A] = {
     val q = LTQueue[A]()
     val in = new QueueInChannel(q) {
-      override val synchronous: Boolean = synchronous
+      override val synchronous: Boolean = synch
     }
     val out = new QueueOutChannel(q)(Some(in)) {
-      override val synchronous: Boolean = synchronous
+      override val synchronous: Boolean = synch
     }
     new QueueChannel[A](in, out)
   }
 
   /** Return two paired asynchronous queue-based channels: what is sent on one
     * can be received from the other. */
-  def pair[A](synchronous: Boolean): (QueueChannel[A], QueueChannel[A]) = {
+  def pair[A](): (QueueChannel[A], QueueChannel[A]) = {
     val q1 = LTQueue[A]()
     val q2 = LTQueue[A]()
     val in1 = new QueueInChannel(q1) {
-      override val synchronous: Boolean = synchronous
+      override val synchronous: Boolean = false
     }
     val out1 = new QueueOutChannel(q1)(Some(in1)) {
-      override val synchronous: Boolean = synchronous
+      override val synchronous: Boolean = false
     }
     val in2 = new QueueInChannel(q2) {
-      override val synchronous: Boolean = synchronous
+      override val synchronous: Boolean = false
     }
     val out2 = new QueueOutChannel(q2)(Some(in2)) {
-      override val synchronous: Boolean = synchronous
+      override val synchronous: Boolean = false
     }
 
     (new QueueChannel[A](in1, out2), new QueueChannel[A](in2, out1))
