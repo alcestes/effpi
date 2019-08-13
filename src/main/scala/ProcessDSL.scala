@@ -284,15 +284,17 @@ package object dsl {
   def eval(env: Map[ProcVar[_], (_) => Process], lp: List[() => Process],
            p: Process): Unit = p match {
     case i: In[_,_,_] => {
-      val v: Any = i.channel.receive()(i.timeout)
-      if (i.channel.synchronous) {
+      val ic = i.channel
+      val v: Any = ic.receive()(i.timeout)
+      val cont = if (ic.synchronous) {
         // We received a tuple containing a value and an ack channel
         val (v2, ack) = v.asInstanceOf[Tuple2[Any, OutChannel[Unit]]]
         ack.send(())
-        eval(env, lp, i.cont.asInstanceOf[Any => Process](v2))
+        i.cont.asInstanceOf[Any => Process](v2)  
       } else {
-        eval(env, lp, i.cont.asInstanceOf[Any => Process](v))
+        i.cont.asInstanceOf[Any => Process](v)
       }
+      eval(env, lp, cont)
     }
     case o: Out[_,_] => {
       val oc = o.channel.asInstanceOf[OutChannel[Any]]
