@@ -195,10 +195,15 @@ object Main {
     val (c2pick, c2drop) = (Chan[Unit](), Chan[Unit]())
     val (c3pick, c3drop) = (Chan[Unit](), Chan[Unit]())
 
-    eval(
+    implicit val ps = effpi.system.ProcessSystemRunnerImproved()
+
+    //eval(
       // Here we can test dining() or diningDF() above
       // NOTE: diningDF() will timeout after 30 seconds after getting stuck
-      diningDF(c1pick, c1drop, c2pick, c2drop, c3pick, c3drop)
-    )
+      dining(c1pick, c1drop, c2pick, c2drop, c3pick, c3drop).spawn(ps)
+    //)
+
+    Thread.sleep(30000); ps.kill()
+    println("*** ProcessSystem killed after 30 seconds.")
   }
 }
