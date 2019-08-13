@@ -51,7 +51,7 @@ trait OutChannel[-A] {
 }
 
 /** A channel that can be used to send and receive values of type `A`. */
-abstract class Channel[T] extends InChannel[T] with OutChannel[T] {
+abstract class Channel[A] extends InChannel[A] with OutChannel[A] {
   /** Is this channel synchronous? */
   override val synchronous: Boolean
 }
@@ -104,10 +104,10 @@ trait QueueOutChannel[-A](q: LTQueue[A])
 }
 
 //TODO: may not want to pass None here for the outqueue
-class QueueChannel[T](q1: LTQueue[T], q2: LTQueue[T],
+class QueueChannel[A](q1: LTQueue[A], q2: LTQueue[A],
                       override val synchronous: Boolean)
-                     (maybeDual: Option[QueueChannel[T]])
-  extends Channel[T] with QueueInChannel(q1)
+                     (maybeDual: Option[QueueChannel[A]])
+  extends Channel[A] with QueueInChannel(q1)
                      with QueueOutChannel(q2)(None) {
 }
 
