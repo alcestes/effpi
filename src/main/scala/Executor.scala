@@ -36,40 +36,71 @@ protected[system] class Executor(ps: ProcessSystem, stepsLeft: Int = 10) extends
     } else {
       val (env, lp, p) = proc
       p match {
-      case i: In[_,_,_] =>
+      case i: In[_,_,_] => {
         ps match {
-          case _: ProcessSystemRunnerImproved =>
+          case _: ProcessSystemRunnerImproved => {
             i.channel.enqueue((env, lp, i.asInstanceOf[In[InChannel[Any], Any, Any => Process]]))
             ()
-          case _: ProcessSystemStateMachineMultiStep =>
-            i.channel.poll() match {
+          }
+          case _: ProcessSystemStateMachineMultiStep => {
+            val ic = i.channel
+            ic.poll() match {
               case Some(v) =>
-                val cont = i.cont.asInstanceOf[Any => Process](v)
+                val cont = if (ic.synchronous) {
+                  // We received a tuple containing a value and an ack channel
+                  val (v2, ack) = v.asInstanceOf[Tuple2[Any, OutChannel[Unit]]]
+                  ack.send(())
+                  // The ack recipient may need to be woken up
+                  // Remember: ps is ProcessSystemStateMachineMultiStep
+                  ps.smartEnqueue(ack.dualIn)
+                  i.cont.asInstanceOf[Any => Process](v2)
+                } else {
+                  i.cont.asInstanceOf[Any => Process](v)
+                }
+                //ps.forceSchedule(ic)
                 fastEval((env, lp, cont), stepsLeft - 1)
               case None =>
-                i.channel.enqueue((env, lp, i.asInstanceOf[In[InChannel[Any], Any, Any => Process]]))
-                ps.smartEnqueue(i.channel)
+                ic.enqueue((env, lp, i.asInstanceOf[In[InChannel[Any], Any, Any => Process]]))
+                ps.smartEnqueue(ic)
             }
+          }
         }
-      case o: Out[_,_] =>
+      }
+      case o: Out[_,_] => {
         val outCh = o.channel.asInstanceOf[OutChannel[Any]]
-        outCh.send(o.v)
+        val ack: Option[InChannel[Unit]] = if (outCh.synchronous) {
+          // Send an ack channel together with the value
+          val ack = outCh.create[Unit](false) // The ack channel *must* be async
+          outCh.send((o.v, ack.out))
+          Some(ack.in)
+        } else {
+          outCh.send(o.v)
+          None
+        }
         val inCh = outCh.dualIn
-
         ps match {
           case _: ProcessSystemRunnerImproved =>
             ps.scheduleInCh(inCh)
           case _: ProcessSystemStateMachineMultiStep =>
             ps.smartEnqueue(inCh)
         }
-
-        lp match {
-          case Nil =>
-            ()
-          case lh :: lt =>
-            fastEval((env, lt, lh()), stepsLeft - 1)
+        ack match {
+          case Some(inc) => {
+            // We must now reschedule ourselves, while we wait for an ack
+            // FIXME: allow to specify timeouts
+            import effpi.process.dsl.{receive, nil}
+            import concurrent.duration.Duration.Inf
+            fastEval((env, lp, receive(inc){ _ => nil }(Inf)), stepsLeft)
+          }
+          case None => {
+            lp match {
+              case Nil => ()
+              case lh :: lt => fastEval((env, lt, lh()), stepsLeft - 1)
+            }
+          }
         }
-      case f: Fork[_] =>
+      }
+      case f: Fork[_] => {
         // TODO: this always gives the same order? this may or may not be a problem
         ps.scheduleProc((env, Nil, f.p()))
         lp match {
@@ -77,12 +108,13 @@ protected[system] class Executor(ps: ProcessSystem, stepsLeft: Int = 10) extends
           case lh :: lt =>
             fastEval((env, lt, lh()), stepsLeft - 1)
         }
+      }
       case n: PNil => lp match {
         case Nil => ()
         case lh :: lt =>
           fastEval((env, lt, lh()), stepsLeft - 1)
       }
-      case y: Yield[_] =>
+      case y: Yield[_] => {
         y.ctx match {
           case Some(c) => c.chan.asInstanceOf[OutChannel[Any]].send(y.v)
           case None => ()
@@ -92,9 +124,10 @@ protected[system] class Executor(ps: ProcessSystem, stepsLeft: Int = 10) extends
           case lh :: lt =>
             fastEval((env, lt, lh()), stepsLeft - 1)
         }
+      }
       case d: Def[_,_,_,_] =>
         fastEval((env + (d.name -> d.pdef), lp, d.in()), stepsLeft - 1)
-      case c: Call[_,_] =>
+      case c: Call[_,_] => {
         env.get(c.procvar) match {
           case Some(p) =>
             fastEval(
@@ -102,6 +135,7 @@ protected[system] class Executor(ps: ProcessSystem, stepsLeft: Int = 10) extends
           case None =>
             throw new RuntimeException(s"Unbound process variable: ${c.procvar}")
         }
+      }
       case s: >>:[_,_] =>
         fastEval((env, s.p2 :: lp, s.p1()), stepsLeft - 1)
       }
