@@ -22,6 +22,9 @@ trait InChannel[+A] {
   /** Is this channel synchronous? */
   val synchronous: Boolean
 
+  /** Custom name for the channel */
+  val name: Option[String]
+
   /** Receive a value (waiting up to `timeout`), and return it.
   *
   * @throws RuntimeException if `timeout` expires.
@@ -34,6 +37,13 @@ trait InChannel[+A] {
   protected[effpi] val schedulingStatus: AtomicInteger = new AtomicInteger(ChannelStatus.unscheduled)
   protected[effpi] def enqueue(i: (Map[ProcVar[_], (_) => Process], List[() => Process], In[InChannel[Any], Any, Any => Process])): Unit
   protected[effpi] def dequeue(): Option[(Map[ProcVar[_], (_) => Process], List[() => Process], In[InChannel[Any], Any, Any => Process])]
+  protected[effpi] def waiting: Boolean
+
+  override def toString(): String = name match {
+    case Some(n) => s"${this.getClass.getName}(${n})@${hashCode}"
+    case None => s"${this.getClass.getName}@${hashCode}"
+  }
+
 }
 
 /** A channel that can only be used to send values of type `A`. */
@@ -46,16 +56,26 @@ trait OutChannel[-A] {
   /** Is this channel synchronous? */
   val synchronous: Boolean
 
+  /** Custom name for the channel */
+  val name: Option[String]
+
   /** Send value `v` through the channel. */
   def send(v: A): Unit
 
   /** Return a new channel with the same characteristics (e.g., same message
     * transport, synchronous or asynchronous,...). */
-  def create[B](): Channel[B] = create[B](this.synchronous)
+  def create[B](): Channel[B] = create[B](this.synchronous, None)
 
   /** Return a new channel with the same characteristics (e.g., same message
     * transport,...), and the given synchronous/asynchronpus behaviour. */
-  def create[B](synch: Boolean): Channel[B]
+  def create[B](synch: Boolean,
+                name: Option[String] = None): Channel[B]
+
+  override def toString(): String = name match {
+    case Some(n) => s"${this.getClass.getName}(${n})@${hashCode}"
+    case None => s"${this.getClass.getName}@${hashCode}"
+  }
+
 }
 
 /** A channel that can be used to send and receive values of type `A`. */
@@ -66,20 +86,25 @@ abstract class Channel[A] extends InChannel[A] with OutChannel[A] {
   // Methods declared in InChannel
   override def receive()(implicit timeout: Duration) = in.receive()(timeout)
   override def dequeue() = in.dequeue()
+  override def waiting = in.waiting
   override def enqueue(i: (Map[ProcVar[_], (_) => Process], List[() => Process], In[InChannel[Any], Any, Any => Process])) = in.enqueue(i)
   override def poll() = in.poll()
 
   // Methods declared in OutChannel
   override def send(v: A) = out.send(v)
   override val dualIn = out.dualIn
-  override def create[B](synch: Boolean): Channel[B] = {
-    out.create[B](synch)
+  override def create[B](synch: Boolean,
+                         name: Option[String] = None): Channel[B] = {
+    out.create[B](synch, name)
   }
 }
 
 object Channel {
   /** Return a synchronous channel. */
   def apply[A](): Channel[A] = QueueChannel.apply[A]()
+
+  /** Return a synchronous channel with the given name. */
+  def apply[A](name: String): Channel[A] = QueueChannel.apply[A](Some(name))
 
   /** Return an asynchronous channel: what is written on the `out` endpoint
     * can be received from the `in` endpoint. */
@@ -90,9 +115,10 @@ object Channel {
   def pair[A](): (Channel[A], Channel[A]) = QueueChannel.pair[A]()
 }
 
-trait QueueInChannel[+A](q: LTQueue[A]) extends InChannel[A] {
+trait QueueInChannel[+A](q: LTQueue[A],
+                         override val name: Option[String] = None) extends InChannel[A] {
 
-  var pendingInProcesses = new LTQueue[(Map[ProcVar[_], (_) => Process], List[() => Process], In[InChannel[Any], Any, Any => Process])]()
+  private val pendingInProcesses = new LTQueue[(Map[ProcVar[_], (_) => Process], List[() => Process], In[InChannel[Any], Any, Any => Process])]()
 
   override def receive()(implicit timeout: Duration) = {
     if (!timeout.isFinite) {
@@ -117,9 +143,12 @@ trait QueueInChannel[+A](q: LTQueue[A]) extends InChannel[A] {
     case null => None
     case head => Some(head)
   }
+
+  override def waiting: Boolean = !pendingInProcesses.isEmpty
 }
 
-trait QueueOutChannel[-A](q: LTQueue[A])
+trait QueueOutChannel[-A](q: LTQueue[A],
+                          override val name: Option[String] = None)
                          (maybeDual: Option[QueueInChannel[Any]]) extends OutChannel[A] {
   override def send(v: A) = q.add(v)
 
@@ -130,8 +159,9 @@ trait QueueOutChannel[-A](q: LTQueue[A])
     case Some(d) => d
   }
 
-  override def create[B](synch: Boolean): QueueChannel[B] = {
-    QueueChannel.apply(synch)
+  override def create[B](synch: Boolean,
+                         name: Option[String] = None): QueueChannel[B] = {
+    QueueChannel.apply(synch, name)
   }
 }
 
@@ -141,22 +171,25 @@ class QueueChannel[A](override val in: QueueInChannel[A],
   extends Channel[A] {
   assert(in.synchronous == out.synchronous)
   override val synchronous = in.synchronous
+
+  assert(in.name == out.name)
+  override val name = in.name
 }
 
 object QueueChannel {
   /** Return a synchronous queue-based channel. */
-  def apply[A](): QueueChannel[A] = apply[A](true)
+  def apply[A](name: Option[String] = None): QueueChannel[A] = apply[A](true, name)
 
   /** Return an asynchronous queue-based channel. */
-  def async[A](): QueueChannel[A] = apply[A](false)
+  def async[A](name: Option[String] = None): QueueChannel[A] = apply[A](false, name)
   
   /** Return a synchronous or asynchronous queue-based channel. */
-  def apply[A](synch: Boolean): QueueChannel[A] = {
+  def apply[A](synch: Boolean, name: Option[String]): QueueChannel[A] = {
     val q = LTQueue[A]()
-    val in = new QueueInChannel(q) {
+    val in = new QueueInChannel(q, name) {
       override val synchronous: Boolean = synch
     }
-    val out = new QueueOutChannel(q)(Some(in)) {
+    val out = new QueueOutChannel(q, name)(Some(in)) {
       override val synchronous: Boolean = synch
     }
     new QueueChannel[A](in, out)

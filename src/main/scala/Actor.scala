@@ -16,6 +16,8 @@ abstract class Mailbox[+A] extends InChannel[A]
 
 private class MailboxImpl[A](c: InChannel[A]) extends Mailbox[A] {
   override val synchronous: Boolean = c.synchronous
+
+  override val name: Option[String] = c.name
   
   override def receive()(implicit timeout: Duration) = c.receive()(timeout)
 
@@ -26,6 +28,8 @@ private class MailboxImpl[A](c: InChannel[A]) extends Mailbox[A] {
                            In[InChannel[Any], Any, Any => Process])) = c.enqueue(i)
 
   override def dequeue() = c.dequeue()
+
+  override def waiting = c.waiting
 }
 
 abstract class ActorRef[-A] extends OutChannel[A] {
@@ -36,6 +40,8 @@ private class ActorRefImpl[A](c: OutChannel[A])
                              (maybeDual: Option[Mailbox[Any]]) extends ActorRef[A] {
   override val synchronous: Boolean = c.synchronous
 
+  override val name: Option[String] = c.name
+
   override def send(v: A) = c.send(v)
 
   override val dualIn: Mailbox[Any] = maybeDual match {
@@ -43,8 +49,9 @@ private class ActorRefImpl[A](c: OutChannel[A])
     case Some(d) => d
   }
 
-  override def create[B](synchronous: Boolean): Channel[B] = {
-    c.create[B](synchronous)
+  override def create[B](synchronous: Boolean,
+                         name: Option[String] = None): Channel[B] = {
+    c.create[B](synchronous, name)
   }
 }
 
@@ -58,6 +65,9 @@ private class ActorChannelImpl[A](override val mbox: Mailbox[A],
   extends ActorChannel[A] {
     assert(mbox.synchronous == ref.synchronous)
     override val synchronous: Boolean = mbox.synchronous
+
+    assert(mbox.name == ref.name)
+    override val name: Option[String] = mbox.name
 }
 
 object ActorChannel {
@@ -67,8 +77,9 @@ object ActorChannel {
   /** Create an asynchronous `ActorChannel`. */
   def async[A](): ActorChannel[A] = apply(false)
   
-  def apply[A](synchronous: Boolean): ActorChannel[A] = {
-    val p = QueueChannel.apply[A](synchronous)
+  def apply[A](synchronous: Boolean,
+               name: Option[String] = None): ActorChannel[A] = {
+    val p = QueueChannel.apply[A](synchronous, name)
     val mbox = new MailboxImpl(p.in)
     val ref = new ActorRefImpl(p.out)(Some(mbox))
     new ActorChannelImpl(mbox, ref)
