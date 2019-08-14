@@ -38,11 +38,11 @@ package object dsl {
 
   object Actor {
     def spawn[A, P <: Process](beh: Behavior[A, P])(implicit ps: ProcessSystem): ActorRef[A] = {
-      val pipe = ActorPipe[A]()
-      implicit val ctx = new ActorCtxImpl[A](pipe.ref, pipe.mbox)
+      val chan = ActorChannel.async[A]()
+      implicit val ctx = new ActorCtxImpl[A](chan.ref, chan.mbox)
       val proc = beh()
       proc.spawn(ps)
-      pipe.ref
+      chan.ref
     }
   }
 
@@ -63,18 +63,18 @@ package object dsl {
 
   def call[T, P <: Process](p: () => Actor[T, P])
                            (implicit timeout: Duration): P = {
-    val pipe = ActorPipe[T]()
-    implicit val ctx = new ActorCtxImpl[T](pipe.ref, pipe.mbox)
+    val chan = ActorChannel.async[T]()
+    implicit val ctx = new ActorCtxImpl[T](chan.ref, chan.mbox)
     p()
   }
   def call[T, Y, P1 <: Process, P2 <: Process](p: () => Actor[T, pdsl.Yielding[Y, P1]])
                                               (cont: Y => P2)
                                               (implicit timeout: Duration): P1 >>: P2 = {
-    val ypipe = QueueChannel.pipe[Y]
-    implicit val yctx = new YieldCtxImpl(ypipe.out)
-    val pipe = ActorPipe[T]()
-    implicit val ctx = new ActorCtxImpl[T](pipe.ref, pipe.mbox)
-    p() >> cont(ypipe.in.receive())
+    val ychan = Channel.async[Y]()
+    implicit val yctx = new YieldCtxImpl(ychan.out)
+    val chan = ActorChannel.async[T]()
+    implicit val ctx = new ActorCtxImpl[T](chan.ref, chan.mbox)
+    p() >> cont(ychan.in.receive())
   }
 
   private def askBeh[Req, Resp]
@@ -104,13 +104,13 @@ package object dsl {
   def spawn[T, P1 <: Process, P2 <: Process]
            (beh: Behavior[T, P1])
            (cont: ActorRef[T] => P2): Spawn[P1, P2] = {
-    val pipe = ActorPipe[T]()
+    val chan = ActorChannel.async[T]()
     pdsl.fork {
       // Here we are inlining an actor; we could use pdsl.spawn, but
       // pfork is already running the following behaviour in parallel
-      implicit val ctx = new ActorCtxImpl[T](pipe.ref, pipe.mbox)
+      implicit val ctx = new ActorCtxImpl[T](chan.ref, chan.mbox)
       beh()
-    } >> cont(pipe.ref)
+    } >> cont(chan.ref)
   }
 
   def forever[P <: Process](beh: => P): Forever[P] = {

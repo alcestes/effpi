@@ -5,53 +5,84 @@ package effpi.actor
 
 import java.util.concurrent.atomic.AtomicInteger
 
-import scala.concurrent.{ Future, Promise, Await }
+import scala.concurrent.{Future, Promise, Await}
 
-import effpi.channel.{AsyncInChannel, AsyncOutChannel, AsyncPipe, QueueChannel}
+import effpi.channel.{Channel, InChannel, OutChannel, QueueChannel}
 import effpi.process.{ProcVar, Process, In}
 import effpi.system._
 import scala.concurrent.duration.Duration
 
-abstract class Mailbox[+A] extends AsyncInChannel[A]
+abstract class Mailbox[+A] extends InChannel[A]
 
-private class MailboxImpl[A](c: AsyncInChannel[A]) extends Mailbox[A] {
+private class MailboxImpl[A](c: InChannel[A]) extends Mailbox[A] {
+  override val synchronous: Boolean = c.synchronous
+
+  override val name: Option[String] = c.name
+  
   override def receive()(implicit timeout: Duration) = c.receive()(timeout)
 
   override def poll() = c.poll()
 
   override def enqueue(i: (Map[ProcVar[_], (_) => Process],
                            List[() => Process],
-                           In[AsyncInChannel[Any], Any, Any => Process])) = c.enqueue(i)
+                           In[InChannel[Any], Any, Any => Process])) = c.enqueue(i)
 
   override def dequeue() = c.dequeue()
+
+  override def waiting = c.waiting
 }
 
-abstract class ActorRef[-A] extends AsyncOutChannel[A] {
+abstract class ActorRef[-A] extends OutChannel[A] {
   def ! = send
 }
 
-private class ActorRefImpl[A](c: AsyncOutChannel[A])(maybeDual: Option[Mailbox[Any]]) extends ActorRef[A] {
+private class ActorRefImpl[A](c: OutChannel[A])
+                             (maybeDual: Option[Mailbox[Any]]) extends ActorRef[A] {
+  override val synchronous: Boolean = c.synchronous
+
+  override val name: Option[String] = c.name
+
   override def send(v: A) = c.send(v)
 
   override val dualIn: Mailbox[Any] = maybeDual match {
     case None => new MailboxImpl(c.dualIn)
     case Some(d) => d
   }
+
+  override def create[B](synchronous: Boolean,
+                         name: Option[String] = None): Channel[B] = {
+    c.create[B](synchronous, name)
+  }
 }
 
-protected[actor] abstract class ActorPipe[A](val mbox: Mailbox[A],
-                                             val ref: ActorRef[A]) extends AsyncPipe[A](mbox, ref)
+protected[actor] abstract class ActorChannel[A] extends Channel[A] {
+  val mbox: Mailbox[A]
+  val ref: ActorRef[A]
+}
 
-private class ActorPipeImpl[A](
-  override val mbox: Mailbox[A],
-  override val ref: ActorRef[A]) extends ActorPipe[A](mbox, ref)
+private class ActorChannelImpl[A](override val mbox: Mailbox[A],
+                                  override val ref: ActorRef[A])
+  extends ActorChannel[A] {
+    assert(mbox.synchronous == ref.synchronous)
+    override val synchronous: Boolean = mbox.synchronous
 
-object ActorPipe {
-  def apply[A](): ActorPipe[A] = {
-    val p = QueueChannel.pipe[A]
+    assert(mbox.name == ref.name)
+    override val name: Option[String] = mbox.name
+}
+
+object ActorChannel {
+  /** Create a synchronous `ActorChannel`. */
+  def apply[A](): ActorChannel[A] = apply(true)
+  
+  /** Create an asynchronous `ActorChannel`. */
+  def async[A](): ActorChannel[A] = apply(false)
+  
+  def apply[A](synchronous: Boolean,
+               name: Option[String] = None): ActorChannel[A] = {
+    val p = QueueChannel.apply[A](synchronous, name)
     val mbox = new MailboxImpl(p.in)
     val ref = new ActorRefImpl(p.out)(Some(mbox))
-    new ActorPipeImpl(mbox, ref)
+    new ActorChannelImpl(mbox, ref)
   }
 }
 
@@ -72,7 +103,7 @@ object patterns {
     val respPromise = Promise[Resp]()
     val respFuture = respPromise.future
 
-    val pipe = ActorPipe[Resp]()
+    val pipe = ActorChannel[Resp]()
     val askProcess = {
       pdsl.send(srv, query(pipe.ref)) >>
       pdsl.receive(pipe.mbox) { msg: Resp =>

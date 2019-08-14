@@ -8,9 +8,7 @@ import java.util.concurrent.Executors
 import scala.util.{Failure, Success, Try}
 import scala.concurrent.duration.Duration
 
-import effpi.channel.{AsyncInChannel => InChannel,
-                      AsyncOutChannel => OutChannel,
-                      ChannelStatus}
+import effpi.channel.{InChannel, OutChannel, ChannelStatus}
 
 trait ProcessSystem {
 
@@ -35,19 +33,21 @@ trait ProcessSystem {
 
   //TODO: below are the functions to be used with a state machine for inchannels
   final def smartEnqueue(inCh: InChannel[_]) = {
-    val old = inCh.schedulingStatus.getAndSet(ChannelStatus.scheduled)
-    if (old == ChannelStatus.unscheduled) scheduleInCh(inCh)
+    val old = inCh.in.schedulingStatus.getAndSet(ChannelStatus.scheduled)
+    if (old == ChannelStatus.unscheduled) scheduleInCh(inCh.in)
   }
 
   final def smartUnschedule(inCh: InChannel[_]) = {
-    val unscheduled = inCh.schedulingStatus.compareAndSet(
+    // IMPORTANT: use inCh.in, that is guaranteed to be an actual input chan
+    val unscheduled = inCh.in.schedulingStatus.compareAndSet(
       ChannelStatus.running, ChannelStatus.unscheduled)
-    if (!unscheduled) forceSchedule(inCh)
+    if (!unscheduled) forceSchedule(inCh.in)
   }
 
   final def forceSchedule(inCh: InChannel[_]) = {
-    inCh.schedulingStatus.set(ChannelStatus.scheduled)
-    scheduleInCh(inCh)
+    // IMPORTANT: use inCh.in, that is guaranteed to be an actual input chan
+    inCh.in.schedulingStatus.set(ChannelStatus.scheduled)
+    scheduleInCh(inCh.in)
   }
 
   def init(threadsPerCore: Int): Unit

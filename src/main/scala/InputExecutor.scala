@@ -8,9 +8,7 @@ import java.lang.Runnable
 import scala.util.{Failure, Success, Try}
 import scala.concurrent.duration.Duration
 
-import effpi.channel.{AsyncInChannel => InChannel,
-                      AsyncOutChannel => OutChannel,
-                      ChannelStatus}
+import effpi.channel.{InChannel, OutChannel, ChannelStatus}
 
 protected[system] class InputExecutor(ps: ProcessSystem, stepsLeft: Int = 10) extends Runnable {
 
@@ -54,30 +52,55 @@ protected[system] class InputExecutor(ps: ProcessSystem, stepsLeft: Int = 10) ex
     } else {
       val (env, lp, p) = proc
       p match {
-        case i: In[_,_,_] =>
-          i.channel.async.poll() match {
-            case Some(v) =>
-              val cont = i.cont.asInstanceOf[Any => Process](v)
+        case i: In[_,_,_] => {
+          val ic = i.channel
+          ic.poll() match {
+            case Some(v) => {
+              val cont = if (ic.synchronous) {
+                // We received a tuple containing a value and an ack channel
+                val (v2, ack) = v.asInstanceOf[Tuple2[Any, OutChannel[Unit]]]
+                ack.send(())
+                // The ack recipient may need to be woken up
+                val ackIn = ack.dualIn
+                ps match {
+                  case _: ProcessSystemRunnerImproved => ps.scheduleInCh(ackIn)
+                  case _: ProcessSystemStateMachineMultiStep => ps.smartEnqueue(ackIn)
+                }
+                i.cont.asInstanceOf[Any => Process](v2)
+              } else {
+                i.cont.asInstanceOf[Any => Process](v)
+              }
               ps match {
                 case _: ProcessSystemRunnerImproved =>
                   ()
                 case _: ProcessSystemStateMachineMultiStep =>
-                  ps.forceSchedule(i.channel.async)
+                  ps.forceSchedule(ic)
               }
               multiInEval((env, lp, cont), stepsLeft - 1)
-            case None =>
-              i.channel.async.enqueue((env, lp, i.asInstanceOf[In[InChannel[Any], Any, Any => Process]]))
+            }
+            case None => {
+              ic.enqueue((env, lp, i.asInstanceOf[In[InChannel[Any], Any, Any => Process]]))
 
               ps match {
                 case _: ProcessSystemRunnerImproved =>
                   ()
                 case _: ProcessSystemStateMachineMultiStep =>
-                  ps.smartUnschedule(i.channel.async)
+                  ps.smartUnschedule(ic)
               }
+            }
           }
-        case o: Out[_,_] =>
+        }
+        case o: Out[_,_] => {
           val outCh = o.channel.asInstanceOf[OutChannel[Any]]
-          outCh.send(o.v)
+          val ack: Option[InChannel[Unit]] = if (outCh.synchronous) {
+            // Send an ack channel together with the value
+            val ack = outCh.create[Unit](false) // The ack channel *must* be async
+            outCh.send((o.v, ack.out))
+            Some(ack.in)
+          } else {
+            outCh.send(o.v)
+            None
+          }
           val inCh = outCh.dualIn
           ps match {
             case _: ProcessSystemRunnerImproved =>
@@ -85,13 +108,23 @@ protected[system] class InputExecutor(ps: ProcessSystem, stepsLeft: Int = 10) ex
             case _: ProcessSystemStateMachineMultiStep =>
               ps.smartEnqueue(inCh)
           }
-          lp match {
-            case Nil =>
-              ()
-            case lh :: lt =>
-              multiInEval((env, lt, lh()), stepsLeft - 1)
+          ack match {
+            case Some(inc) => {
+              // We must now reschedule ourselves, while we wait for an ack
+              // FIXME: allow to specify timeouts
+              import effpi.process.dsl.{receive, nil}
+              import concurrent.duration.Duration.Inf
+              multiInEval((env, lp, receive(inc){ _ => nil }(Inf)), stepsLeft)
+            }
+            case None => {
+              lp match {
+                case Nil => ()
+                case lh :: lt => multiInEval((env, lt, lh()), stepsLeft - 1)
+              }
+            }
           }
-        case f: Fork[_] =>
+        }
+        case f: Fork[_] => {
           // TODO: this always gives the same order? this may or may not be a problem
           ps.scheduleProc((env, Nil, f.p()))
           lp match {
@@ -99,12 +132,13 @@ protected[system] class InputExecutor(ps: ProcessSystem, stepsLeft: Int = 10) ex
             case lh :: lt =>
               multiInEval((env, lt, lh()), stepsLeft - 1)
           }
+        }
         case n: PNil => lp match {
           case Nil => ()
           case lh :: lt =>
             multiInEval((env, lt, lh()), stepsLeft - 1)
         }
-        case y: Yield[_] =>
+        case y: Yield[_] => {
           y.ctx match {
             case Some(c) => c.chan.asInstanceOf[OutChannel[Any]].send(y.v)
             case None => ()
@@ -114,9 +148,10 @@ protected[system] class InputExecutor(ps: ProcessSystem, stepsLeft: Int = 10) ex
             case lh :: lt =>
               multiInEval((env, lt, lh()), stepsLeft - 1)
           }
+        }
         case d: Def[_,_,_,_] =>
           multiInEval((env + (d.name -> d.pdef), lp, d.in()), stepsLeft - 1)
-        case c: Call[_,_] =>
+        case c: Call[_,_] => {
           env.get(c.procvar) match {
             case Some(p) =>
               multiInEval(
@@ -124,6 +159,7 @@ protected[system] class InputExecutor(ps: ProcessSystem, stepsLeft: Int = 10) ex
             case None =>
               throw new RuntimeException(s"Unbound process variable: ${c.procvar}")
           }
+        }
         case s: >>:[_,_] =>
           multiInEval((env, s.p2 :: lp, s.p1()), stepsLeft - 1)
       }

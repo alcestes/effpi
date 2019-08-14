@@ -284,11 +284,29 @@ package object dsl {
   def eval(env: Map[ProcVar[_], (_) => Process], lp: List[() => Process],
            p: Process): Unit = p match {
     case i: In[_,_,_] => {
-      val v = i.channel.receive()(i.timeout)
-      eval(env, lp, i.cont.asInstanceOf[Any => Process](v))
+      val ic = i.channel
+      val v: Any = ic.receive()(i.timeout)
+      val cont = if (ic.synchronous) {
+        // We received a tuple containing a value and an ack channel
+        val (v2, ack) = v.asInstanceOf[Tuple2[Any, OutChannel[Unit]]]
+        ack.send(())
+        i.cont.asInstanceOf[Any => Process](v2)  
+      } else {
+        i.cont.asInstanceOf[Any => Process](v)
+      }
+      eval(env, lp, cont)
     }
     case o: Out[_,_] => {
-      o.channel.asInstanceOf[OutChannel[Any]].send(o.v)
+      val oc = o.channel.asInstanceOf[OutChannel[Any]]
+      if (oc.synchronous) {
+        // Send an ack channel together with the value
+        val ack = oc.create[Unit](false) // The ack channel *must* be async
+        oc.send((o.v, ack.out))
+        // FIXME: allow to specify timeouts
+        ack.in.receive()(concurrent.duration.Duration.Inf)
+      } else {
+        oc.send(o.v)
+      }
       lp match {
         case Nil => ()
         case lh :: lt => eval(env, lt, lh())
