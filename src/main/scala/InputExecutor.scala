@@ -74,7 +74,7 @@ protected[system] class InputExecutor(ps: ProcessSystem, stepsLeft: Int = 10) ex
                 case _: ProcessSystemRunnerImproved =>
                   ()
                 case _: ProcessSystemStateMachineMultiStep =>
-                  ps.forceSchedule(i.channel)
+                  ps.forceSchedule(ic)
               }
               multiInEval((env, lp, cont), stepsLeft - 1)
             }
@@ -85,7 +85,7 @@ protected[system] class InputExecutor(ps: ProcessSystem, stepsLeft: Int = 10) ex
                 case _: ProcessSystemRunnerImproved =>
                   ()
                 case _: ProcessSystemStateMachineMultiStep =>
-                  ps.smartUnschedule(i.channel)
+                  ps.smartUnschedule(ic)
               }
             }
           }
@@ -116,7 +116,7 @@ protected[system] class InputExecutor(ps: ProcessSystem, stepsLeft: Int = 10) ex
               import concurrent.duration.Duration.Inf
               multiInEval((env, lp, receive(inc){ _ => nil }(Inf)), stepsLeft)
             }
-            case _ /* None */ => {
+            case None => {
               lp match {
                 case Nil => ()
                 case lh :: lt => multiInEval((env, lt, lh()), stepsLeft - 1)
