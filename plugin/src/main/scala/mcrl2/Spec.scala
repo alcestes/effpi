@@ -209,11 +209,11 @@ protected[verifier] sealed abstract class Spec(ccstTerm: ccst.CCST, val descript
 
   /** Utility method to convert a series of choices into a branching process */
   private def convertChoices(cs: Map[Choice, Spec],
-                             action: String): Proc = cs.map { (c, spec) =>
+                             action: String): Proc = cs.map { cSpec =>
     assert((action == "i") || (action == "o"))
-    val contProc = toProcess(spec)
+    val contProc = toProcess(cSpec._2)
     Proc(
-      s"${action}(${lookup(c.from)}, ${lookup(c.to)}, ${lookup(c.payload)})" +: contProc.current,
+      s"${action}(${lookup(cSpec._1.from)}, ${lookup(cSpec._1.to)}, ${lookup(cSpec._1.payload)})" +: contProc.current,
       contProc.defs
     )
   }.foldLeft(Proc()) { _ + _ }

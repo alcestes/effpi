@@ -175,7 +175,7 @@ object Property {
         "probes" -> probesAttr,
         "observed_relied" -> observedReliedAttr,
         "observed_relied_probes" -> observedReliedProbesAttr
-      ) ++ extras.map { (k, v) => k -> legendize(v) }
+      ) ++ extras.map { kv => kv._1 -> legendize(kv._2) }
       val res = attrs.foldLeft(ST(tpl, '$', '$')) { (acc, kv) =>
         acc.add(kv._1, kv._2)
       }.render

@@ -458,12 +458,14 @@ class Verifier extends plugins.PluginPhase with plugins.StandardPlugin {
       val prop = mcrl2.Property.apply(propStr, observables, options)
 
       if (prop.isLeft) {
-        ctx.error(s"Property error: ${prop.left.get}", tree.sourcePos)
+        // FIXME: remove null, refactor for the Scala 2.13 stdlib
+        ctx.error(s"Property error: ${prop.swap.getOrElse(null)}", tree.sourcePos)
         return tree
       }
 
       // Trim the observables, only considering those mentioned by the property
-      val pvars = prop.right.get.variables
+      // FIXME: remove null, refactor for the Scala 2.13 stdlib
+      val pvars = prop.getOrElse(null).variables
       val obs = observables.filter { o =>
         pvars contains { o match {
           case TypeVar(name, _) => name.toString
@@ -504,7 +506,8 @@ class Verifier extends plugins.PluginPhase with plugins.StandardPlugin {
                   val mspec = mcrl2.Spec(ccs)
                   ctx.log(s"mCRL2 spec:\n${mspec.show}")
                   
-                  val verifier = mcrl2.Verifier(mspec, prop.right.get,
+                  // FIXME: remove null, refactor for the Scala 2.13 stdlib
+                  val verifier = mcrl2.Verifier(mspec, prop.getOrElse(null),
                                                 options)
                   
                   // Skip verification if requested via compiler options

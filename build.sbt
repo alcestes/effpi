@@ -28,8 +28,8 @@ lazy val plugin = project
     // TODO: exclude unnecessary dependencies from assembly jar
     libraryDependencies ++= Seq(
       "ch.epfl.lamp" %% "dotty-compiler" % scalaVersion.value % "provided",
-      ("org.scala-lang.modules" %% "scala-parser-combinators" % "1.1.2").withDottyCompat(scalaVersion.value),
-      "org.antlr" % "ST4" % "4.1"
+      ("org.scala-lang.modules" %% "scala-parser-combinators" % "1.1.2" % "provided").withDottyCompat(scalaVersion.value),
+      "org.antlr" % "ST4" % "4.1" % "provided"
     ),
   )
 
