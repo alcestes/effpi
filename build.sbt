@@ -1,4 +1,4 @@
-val dottyVersion = "0.17.0-RC1"
+val dottyVersion = "0.18.1-RC1"
 val effpiVersion = "0.0.3"
 
 val useEffpiPlugin = settingKey[Boolean]("Use the effpi compiler plugin in sub-projects.")
@@ -42,8 +42,8 @@ lazy val benchmarks = project
     scalaVersion := dottyVersion,
 
     libraryDependencies ++= Seq(
-        ("com.typesafe.akka" %% "akka-actor-typed" % "2.5.17").withDottyCompat(scalaVersion.value).
-        exclude("org.scala-lang.modules", "scala-java8-compat_2.12")
+        ("com.typesafe.akka" %% "akka-actor-typed" % "2.5.25").withDottyCompat(scalaVersion.value).
+        exclude("org.scala-lang.modules", "scala-java8-compat_2.13")
     ),
 
     libraryDependencies ++= Seq(
