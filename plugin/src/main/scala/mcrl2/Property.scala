@@ -115,7 +115,7 @@ object Property {
                            extras: Map[String, Set[String]],
                            options: Options)
                           (implicit ctx: Context) extends Property {
-    import org.clapper.scalasti.ST
+    import org.stringtemplate.v4.ST
 
     override val variables: Set[String] = observed ++ relied
 
@@ -176,7 +176,9 @@ object Property {
         "observed_relied" -> observedReliedAttr,
         "observed_relied_probes" -> observedReliedProbesAttr
       ) ++ extras.map { (k, v) => k -> legendize(v) }
-      val res = ST(tpl, '$', '$').addAttributes(attrs).render().get
+      val res = attrs.foldLeft(ST(tpl, '$', '$')) { (acc, kv) =>
+        acc.add(kv._1, kv._2)
+      }.render
       ctx.log(s"Rendered MCF formula:\n${res}")
       Right(res)
     }

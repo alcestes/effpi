@@ -29,7 +29,7 @@ lazy val plugin = project
     libraryDependencies ++= Seq(
       "ch.epfl.lamp" %% "dotty-compiler" % scalaVersion.value % "provided",
       ("org.scala-lang.modules" %% "scala-parser-combinators" % "1.1.2").withDottyCompat(scalaVersion.value),
-      ("org.clapper" %% "scalasti" % "3.0.1").withDottyCompat(scalaVersion.value)
+      "org.antlr" % "ST4" % "4.1"
     ),
   )
 
