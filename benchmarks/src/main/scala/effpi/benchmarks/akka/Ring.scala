@@ -4,7 +4,7 @@
 package effpi.benchmarks.akka
 
 import akka.NotUsed
-import akka.actor.typed.scaladsl.{ Behaviors, MutableBehavior, ActorContext}
+import akka.actor.typed.scaladsl.{ Behaviors, AbstractBehavior, ActorContext}
 import akka.actor.typed.{ ActorRef, ActorSystem, Behavior, DispatcherSelector, Terminated }
 import scala.concurrent.Future
 import scala.concurrent.duration._
@@ -26,7 +26,7 @@ object Ring {
   class MutableRingMember(
     ctx: ActorContext[Message],
     forwardTo: Future[ActorRef[Message]], members: Int, numMsgs: Int
-  ) extends MutableBehavior[Message] {
+  ) extends AbstractBehavior[Message](ctx) {
     var msgFinished = 0
     var msgDone = 0
 

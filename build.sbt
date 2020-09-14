@@ -1,4 +1,4 @@
-val dottyVersion = "0.17.0-RC1"
+val dottyVersion = "0.27.0-RC1"
 val effpiVersion = "0.0.3"
 
 val useEffpiPlugin = settingKey[Boolean]("Use the effpi compiler plugin in sub-projects.")
@@ -29,7 +29,7 @@ lazy val plugin = project
     libraryDependencies ++= Seq(
       "ch.epfl.lamp" %% "dotty-compiler" % scalaVersion.value % "provided",
       ("org.scala-lang.modules" %% "scala-parser-combinators" % "1.1.2").withDottyCompat(scalaVersion.value),
-      "org.antlr" % "ST4" % "4.1"
+      "org.antlr" % "ST4" % "4.3.1"
     ),
   )
 
@@ -42,13 +42,13 @@ lazy val benchmarks = project
     scalaVersion := dottyVersion,
 
     libraryDependencies ++= Seq(
-        ("com.typesafe.akka" %% "akka-actor-typed" % "2.5.17").withDottyCompat(scalaVersion.value).
-        exclude("org.scala-lang.modules", "scala-java8-compat_2.12")
+        ("com.typesafe.akka" %% "akka-actor-typed" % "2.6.9").withDottyCompat(scalaVersion.value).
+        exclude("org.scala-lang.modules", "scala-java8-compat_2.13")
     ),
 
     libraryDependencies ++= Seq(
-      ("org.scalikejdbc" %% "scalikejdbc" % "3.3.5").withDottyCompat(scalaVersion.value),
-      "org.xerial"      % "sqlite-jdbc"      % "3.28.0",
+      ("org.scalikejdbc" %% "scalikejdbc" % "3.5.0").withDottyCompat(scalaVersion.value),
+      "org.xerial"      % "sqlite-jdbc"      % "3.32.3.2",
       "ch.qos.logback"  % "logback-classic"  % "1.2.3"
     ),
 

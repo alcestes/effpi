@@ -4,7 +4,7 @@
 package effpi.benchmarks.akka
 
 import akka.NotUsed
-import akka.actor.typed.scaladsl.{ Behaviors, MutableBehavior, ActorContext}
+import akka.actor.typed.scaladsl.{ Behaviors, ActorContext}
 import akka.actor.typed.{ ActorRef, ActorSystem, Behavior, DispatcherSelector, Terminated }
 
 import scala.concurrent.Future

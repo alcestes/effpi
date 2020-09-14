@@ -28,7 +28,7 @@ object ForkJoinThroughput {
     var count = 0
     prec(RecA) {
       if (count < maxMsgs) {
-        read { _: Message =>
+        read { (_: Message) =>
           count += 1
           ploop(RecA)
         }

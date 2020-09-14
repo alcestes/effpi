@@ -4,7 +4,7 @@
 package effpi.benchmarks.akka
 
 import akka.NotUsed
-import akka.actor.typed.scaladsl.{ Behaviors, MutableBehavior, ActorContext}
+import akka.actor.typed.scaladsl.{ Behaviors, AbstractBehavior, ActorContext}
 import akka.actor.typed.{ ActorRef, ActorSystem, Behavior, DispatcherSelector, Terminated }
 import scala.concurrent.Future
 import scala.concurrent.duration._
@@ -22,7 +22,7 @@ object ForkJoinThroughput {
   class MutableSimpleActor(
     ctx: ActorContext[Message],
     maxMsgs: Int
-  ) extends MutableBehavior[Message] {
+  ) extends AbstractBehavior[Message](ctx) {
     var count = 0
 
     override def onMessage(msg: Message): Behavior[Message] = {

@@ -11,6 +11,7 @@ import java.io.{BufferedReader, InputStreamReader}
 import java.nio.file.{Files, Path, Paths}
 
 import dotty.tools.dotc.core.Contexts.Context
+import dotty.tools.dotc.report
 
 /** Playground to verify whether a set of [[mpstk.mcrl2.Spec]]s satisfy a
   * set of [[mpstk.mcrl2.Property]]. */
@@ -21,27 +22,27 @@ class Verifier(val spec: Spec,
               (implicit ctx: Context) { // extends LazyLogging {
   def runCommand(cmd: String,
                  args: Seq[String]): util.StdOutErrAndTime = {
-    def logger(s: String) = ctx.log(s)
+    def logger(s: String) = report.log(s)
     util.runCommand(cmd, args, logger)
   }
   
   lazy val tempDir: Path = {
     val dir = Files.createTempDirectory("effpi-")
-    ctx.log(s"New temporary directory: ${dir}")
+    report.log(s"New temporary directory: ${dir}")
     dir
   }
 
   private
   lazy val specFile: Path = {
     val path = tempDir.resolve(Paths.get(spec.filename ++ ".mcrl2"))
-    ctx.log(s"Creating mCRL2 specification file: ${path}")
+    report.log(s"Creating mCRL2 specification file: ${path}")
     Files.write(path, spec.show.getBytes)
   }
 
   private
   lazy val lpsFile: Path = {
     val path = tempDir.resolve(Paths.get(spec.filename ++ ".lps"))
-    ctx.log(s"Generating LPS file: ${path}")
+    report.log(s"Generating LPS file: ${path}")
     val cmd = "mcrl22lps"
     val args = Seq(s"${specFile}", s"${path}")
     runCommand(cmd, args)
@@ -51,7 +52,7 @@ class Verifier(val spec: Spec,
   private
   lazy val ltsFile: Path = {
     val path = tempDir.resolve(Paths.get(spec.filename ++ ".lts"))
-    ctx.warning(s"Generating LTS file: ${path}. This might take a while...")
+    report.warning(s"Generating LTS file: ${path}. This might take a while...")
     val cmd = "lps2lts"
     val args = Seq(s"${lpsFile}", s"${path}")
     runCommand(cmd, args)
@@ -74,9 +75,9 @@ class Verifier(val spec: Spec,
     * After invoking this method, the verifier behaviour is undefined.
     */
   def close(): Unit = if (options.keepTmp) {
-    ctx.log(s"NOT removing temporary dir: ${tempDir}")
+    report.log(s"NOT removing temporary dir: ${tempDir}")
   } else {
-    ctx.log(s"Removing temporary dir: ${tempDir}")
+    report.log(s"Removing temporary dir: ${tempDir}")
     deleteDir(tempDir.toFile)
   } 
 

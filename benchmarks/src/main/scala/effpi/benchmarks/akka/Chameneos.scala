@@ -4,7 +4,7 @@
 package effpi.benchmarks.akka
 
 import akka.NotUsed
-import akka.actor.typed.scaladsl.{ Behaviors, MutableBehavior, ActorContext}
+import akka.actor.typed.scaladsl.{ Behaviors, AbstractBehavior, ActorContext}
 import akka.actor.typed.{ ActorRef, ActorSystem, Behavior, DispatcherSelector, Terminated }
 import scala.concurrent.Future
 import scala.concurrent.duration._
@@ -45,7 +45,7 @@ object Chameneos {
     ctx: ActorContext[Request],
     maxMeetings: Int, numChameneos: Int,
     startTimeFuture: Future[Long], endTimePromise: Promise[Long]
-  ) extends MutableBehavior[Request] {
+  ) extends AbstractBehavior[Request](ctx) {
 
     var mate: Option[Request] = None
     var meetings = 0
@@ -83,7 +83,10 @@ object Chameneos {
   def chameneos(server: ActorRef[Request], initColour: Colour, id: Int) =
     Behaviors.setup[Response] { ctx => new MutableChameneos(ctx, server, initColour, id) }
 
-  class MutableChameneos(ctx: ActorContext[Response], server: ActorRef[Request], initColour: Colour, id: Int) extends MutableBehavior[Response] {
+  class MutableChameneos(ctx: ActorContext[Response],
+                         server: ActorRef[Request],
+                         initColour: Colour,
+                         id: Int) extends AbstractBehavior[Response](ctx) {
     var colour = initColour
     val colorer = Behaviors.receive[PtoPCommunication] { (ctx, msg) =>
       msg match {

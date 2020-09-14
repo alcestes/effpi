@@ -23,7 +23,7 @@ package object dsl {
   type Ask[R <: ActorRef[Req], Req, Resp, P <: Process] =
          (SendTo[R, Req] >>: ReadDep[Resp, (x: Resp) => Yield[x.type]]) >>: P
 
-  type Actor[A, T] = given ActorCtx[A] => T
+  type Actor[A, T] = ActorCtx[A] ?=> T
 
   class Behavior[A, P](body: => Actor[A, P])
         extends Function0[Actor[A, P]] {
