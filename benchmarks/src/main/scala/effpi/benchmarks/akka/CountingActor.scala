@@ -4,8 +4,8 @@
 package effpi.benchmarks.akka
 
 import akka.NotUsed
-import akka.actor.typed.scaladsl.{ Behaviors, MutableBehavior, ActorContext}
-import akka.actor.typed.{ ActorRef, ActorSystem, Behavior, DispatcherSelector, Terminated }
+import akka.actor.typed.scaladsl.{ Behaviors, AbstractBehavior, ActorContext}
+import akka.actor.typed.{ ActorRef, ActorSystem, Behavior, Terminated }
 
 import scala.concurrent.Future
 import scala.concurrent.duration._
@@ -28,7 +28,7 @@ object CountingActor {
 
   class MutableCounter(
     ctx: ActorContext[CounterAction]
-  ) extends MutableBehavior[CounterAction] {
+  ) extends AbstractBehavior[CounterAction](ctx) {
     var counter = 0
 
     override def onMessage(msg: CounterAction): Behavior[CounterAction] = {
