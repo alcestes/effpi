@@ -33,7 +33,6 @@ lazy val plugin = project
     ),
   )
 
-/*
 lazy val benchmarks = project
   .in(file("benchmarks"))
   .dependsOn(effpi)
@@ -55,7 +54,6 @@ lazy val benchmarks = project
 
     mainClass in assembly := Some("effpi.benchmarks.main.Main"),
   )
- */
 
 // Options for loading the compiler plugin
 //
