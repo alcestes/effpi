@@ -50,7 +50,7 @@ object PingPong {
       // println("ping...")
       if (count > 0) {
         send(pongRef, Ping(self)) >>
-        read { x: PongMessage => x match {
+        read { (x: PongMessage) => x match {
             case PongMessage.Pong =>
               count = count - 1
               // println(s"count = $count")

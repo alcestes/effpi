@@ -52,7 +52,7 @@ object CountingActor {
           ploop(RecA)
       } else {
         send(counter, CounterAction.Cheque(self)) >>
-        read { x: Sum => x match {
+        read { (x: Sum) => x match {
             case Sum(sum) =>
               endTimePromise.success(System.nanoTime())
               // println(s"The sum of all numbers is $sum")

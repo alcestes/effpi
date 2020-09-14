@@ -10,7 +10,7 @@ import scala.concurrent.ExecutionContext.Implicits.global
 
 import java.io.{BufferedWriter, FileWriter}
 
-import scala.collection.JavaConversions._
+import scala.jdk.CollectionConverters._
 import scala.collection.mutable.ListBuffer
 import scala.util.Random
 
@@ -224,12 +224,11 @@ object Main {
                         benchName: String, system: String,
                         db: DB,
                         reduced: Boolean = false) = {
-    import scala.language.implicitConversions
     import javax.management.{Notification, NotificationEmitter, NotificationListener}
     import javax.management.openmbean.CompositeData
     import com.sun.management.{GarbageCollectionNotificationInfo => GCNInfo}
     import java.lang.management.GarbageCollectorMXBean
-    import scala.collection.mutable.MutableList
+    import scala.collection.mutable.ListBuffer
 
     if (!sizeBenchmarks.keySet.contains(benchName)) {
       throw new RuntimeException(s"Unsupported benchmark: ${benchName}")
@@ -240,11 +239,11 @@ object Main {
     val benchmark = sizeBenchmarks(benchName)
     val params = if (reduced) benchmark.params.take(2) else benchmark.params
 
-    val gcBeans = java.lang.management.ManagementFactory.getGarbageCollectorMXBeans()
-    println(s"Garbage collector beans: ${gcBeans.map(_.getName).toList}")
+    val gcBeans = java.lang.management.ManagementFactory.getGarbageCollectorMXBeans().asScala.toList
+    println(s"Garbage collector beans: ${gcBeans.map(_.getName)}")
 
     // Will contain a map from GCs to memory usage values (in bytes)
-    val usedMem = Map((gcBeans.map { b => (b, MutableList[Long]()) }):_*)
+    val usedMem = Map((gcBeans.map { b => (b, ListBuffer[Long]()) }):_*)
 
     val listener = new NotificationListener() {
       override def handleNotification(n: Notification, emitter: Object) = {
@@ -252,7 +251,7 @@ object Main {
           val gc = emitter.asInstanceOf[GarbageCollectorMXBean]
           val info = GCNInfo.from(n.getUserData.asInstanceOf[CompositeData])
           val usage = info.getGcInfo.getMemoryUsageBeforeGc
-          usedMem(gc) += usage.values.map(_.getUsed).fold(0L)((x,y) => x+y)
+          usedMem(gc) += usage.values.asScala.map(_.getUsed).fold(0L)((x,y) => x+y)
         }
       }
     }
