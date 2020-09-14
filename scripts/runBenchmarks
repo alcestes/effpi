@@ -1,5 +1,5 @@
 #!/bin/sh
-exec scala -feature -deprecation -cp ./benchmarks/target/scala-0.17/effpi-benchmarks-assembly-0.0.3.jar "$0" "$@"
+exec scala -feature -deprecation -cp ./benchmarks/target/scala-0.27/effpi-benchmarks-assembly-0.0.3.jar "$0" "$@"
 !#
 // Effpi - verified message-passing programs in Dotty
 // Copyright 2019 Alceste Scalas and Elias Benussi
@@ -27,10 +27,10 @@ object Main {
       singleLineMode = false,
       printUnprocessedStackTrace = false,
       stackTraceDepth= 15,
-      logLevel = 'warn,
+      logLevel = Symbol("warn"),
       warningEnabled = false,
       warningThresholdMillis = 3000L,
-      warningLogLevel = 'warn
+      warningLogLevel = Symbol("warn")
     )
 
     val repetitions = if (args.length > 0) args(0) else 1
@@ -55,7 +55,7 @@ object Main {
     //db.begin()
     implicit val session = db.autoCommitSession()
 
-    val benchGroupId = sql"insert into benchmark_group(`start`) values (${System.currentTimeMillis})".updateAndReturnGeneratedKey.apply()
+    val benchGroupId = sql"insert into benchmark_group(`start`) values (${System.currentTimeMillis})".updateAndReturnGeneratedKey().apply()
     println(s"Benchmark group id: ${benchGroupId}")
 
     for (benchmark <- benchmarks) {
@@ -63,7 +63,7 @@ object Main {
         println(s"\n* Waiting ${delay} seconds to let the system settle")
         Thread.sleep(delay * 1000)
         val oomOpts = "-Xms128M -Xmx4G -XX:+CrashOnOutOfMemoryError"
-        s"java ${oomOpts} -jar ./benchmarks/target/scala-0.17/effpi-benchmarks-assembly-0.0.3.jar size_vs_time ${system} ${benchmark} ${repetitions} ${benchGroupId}" !
+        s"java ${oomOpts} -jar ./benchmarks/target/scala-0.27/effpi-benchmarks-assembly-0.0.3.jar size_vs_time ${system} ${benchmark} ${repetitions} ${benchGroupId}" !
       }
     }
 
@@ -72,11 +72,11 @@ object Main {
         println(s"\n* Waiting ${delay} seconds to let the system settle")
         Thread.sleep(delay * 1000)
         val oomOpts = "-Xms128M -Xmx4G -XX:+CrashOnOutOfMemoryError"
-        s"java ${oomOpts} -jar ./benchmarks/target/scala-0.17/effpi-benchmarks-assembly-0.0.3.jar size_vs_memory ${system} ${benchmark} ${repetitions} ${benchGroupId}" !
+        s"java ${oomOpts} -jar ./benchmarks/target/scala-0.27/effpi-benchmarks-assembly-0.0.3.jar size_vs_memory ${system} ${benchmark} ${repetitions} ${benchGroupId}" !
       }
     }
 
-    sql"update benchmark_group set `end` = ${System.currentTimeMillis} where `id` = ${benchGroupId}".update.apply()
+    sql"update benchmark_group set `end` = ${System.currentTimeMillis} where `id` = ${benchGroupId}".update().apply()
 
     //db.commit()
     db.close()
@@ -92,7 +92,7 @@ object Main {
     //   for (benchmarkIndex <- 0 to 5) {
     //     println(s"* Waiting ${delay} seconds to let the system settle")
     //     Thread.sleep(delay * 1000)
-    //     s"java -jar ./target/scala-0.17/effpi-assembly-0.0.3.jar 1 $psIndex $benchmarkIndex $numReps" !
+    //     s"java -jar ./target/scala-0.27/effpi-assembly-0.0.3.jar 1 $psIndex $benchmarkIndex $numReps" !
     //   }
     // }
   }
