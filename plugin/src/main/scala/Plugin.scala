@@ -293,32 +293,17 @@ object Verifier {
   }
 }
 
-class Verifier extends plugins.PluginPhase with plugins.StandardPlugin {
-  import Verifier.DSL
+private val pluginName = "effpiVerifier" // The name of this plugin
 
-  val name: String = "effpiVerifier"
+class EffpiVerifier extends plugins.StandardPlugin {
+  val name: String = pluginName
   override val description: String = "verify behavioural properties of effpi programs"
-
-  val phaseName = name
-
-  override val runsAfter = Set(dotty.tools.dotc.typer.FrontEnd.name)
-  // override val runsBefore = Set(transform.FirstTransform.name)
-
-  // Names of annotation arguments.
-  // NOTE: must be kept in sync with the effpi.verifier.verify annotation
-  private val ARG_PROPERTY = "property"
-  private val ARG_BENCHMARK = "benchmark"
-  private val ARG_SPEC_NAME = "spec_name"
-  private val ARG_BIGLTS = "big_lts"
-  private val ARG_SOLVER = "solver"
-  private val ARGS_SET = Set(
-    ARG_PROPERTY, ARG_SPEC_NAME, ARG_BENCHMARK, ARG_BIGLTS, ARG_SOLVER)
 
   // Plugin options
   private var optKeepTmp = false // Keep temporary files?
   private var optSkipLts = false // Skip LTS generation?
   private var optBenchOverride: Option[Int] = None // Override benchmark config?
-
+  
   def init(options: List[String]): List[plugins.PluginPhase] = {
     options.foreach { o =>
       if (o == "keep-tmp") {
@@ -334,8 +319,29 @@ class Verifier extends plugins.PluginPhase with plugins.StandardPlugin {
         throw new RuntimeException(s"Invalid plugin option: ${o}")
       }
     }
-    this :: Nil
+    (new VerifierPhase(optKeepTmp, optSkipLts, optBenchOverride)) :: Nil
   }
+}
+
+class VerifierPhase(keepTmp: Boolean,
+                    skipLts: Boolean,
+                    benchOverride: Option[Int]) extends plugins.PluginPhase {
+  import Verifier.DSL
+
+  val phaseName = pluginName
+
+  override val runsAfter = Set(dotty.tools.dotc.typer.FrontEnd.name)
+  // override val runsBefore = Set(transform.FirstTransform.name)
+
+  // Names of annotation arguments.
+  // NOTE: must be kept in sync with the effpi.verifier.verify annotation
+  private val ARG_PROPERTY = "property"
+  private val ARG_BENCHMARK = "benchmark"
+  private val ARG_SPEC_NAME = "spec_name"
+  private val ARG_BIGLTS = "big_lts"
+  private val ARG_SOLVER = "solver"
+  private val ARGS_SET = Set(
+    ARG_PROPERTY, ARG_SPEC_NAME, ARG_BENCHMARK, ARG_BIGLTS, ARG_SOLVER)
 
   def Annotation(implicit ctx: Context) = {
     requiredClassRef("effpi.verifier.verify").symbol.asClass
@@ -452,10 +458,10 @@ class Verifier extends plugins.PluginPhase with plugins.StandardPlugin {
       val specName: String = annot.getOrElse(ARG_SPEC_NAME, "spec")
 
       // When benchmarking, we do not remove the temporary dir
-      val options = Options(tree.sourcePos, optKeepTmp || (benchmarkReps > 0),
+      val options = Options(tree.sourcePos, keepTmp || (benchmarkReps > 0),
                             specName,
-                            optBenchOverride.getOrElse(benchmarkReps),
-                            isBigLTS || optSkipLts,
+                            benchOverride.getOrElse(benchmarkReps),
+                            isBigLTS || skipLts,
                             solver)
 
       val prop = mcrl2.Property.apply(propStr, observables, options)
@@ -514,7 +520,7 @@ class Verifier extends plugins.PluginPhase with plugins.StandardPlugin {
                                                 options)
                   
                   // Skip verification if requested via compiler options
-                  optBenchOverride match {
+                  benchOverride match {
                     case Some(-1) => {
                       verifier.close()
                       return tree
