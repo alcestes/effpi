@@ -12,7 +12,7 @@ The home page of Effpi is: <https://alcestes.github.io/effpi>
 Effpi is developed by:
 
   * Alceste Scalas — DTU Compute, Technical University of Denmark
-    (`a (dot) alcsc (at) dtu (dot) dk`)
+    (`alcsc (at) dtu (dot) dk`)
   * Elias Benussi — Faculty Science Ltd.
     (`elias (at) faculty (dot) ai`)
 
