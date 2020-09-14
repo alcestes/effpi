@@ -13,6 +13,7 @@ import scala.language.implicitConversions
 import scala.util.parsing.combinator._
 
 import dotty.tools.dotc.core.Contexts.Context
+import dotty.tools.dotc.report
 
 /** A raw property produced by parsing. */
 private sealed abstract class RawProperty
@@ -121,13 +122,13 @@ object Property {
 
     def runCommand(cmd: String,
                    args: Seq[String]): util.StdOutErrAndTime = {
-      def logger(s: String) = ctx.log(s)
+      def logger(s: String) = report.log(s)
       util.runCommand(cmd, args, logger)
     }
 
     private lazy val tpl: String = {
       val res = "/mcrl2/" + shortName + ".mcf"
-      ctx.log(s"Retrieving MCF file template from resource: ${res}")
+      report.log(s"Retrieving MCF file template from resource: ${res}")
       util.resource(res)
     }
     
@@ -149,7 +150,7 @@ object Property {
        * `legend` of the mCRL2 spec, and skipping unknown parameters.
        * Also turn the result into a String, with comma-separated entries. */
       val legend = spec.legendHR
-      ctx.log(s"Legend from human-readable names to mCRL2 aliases:\n${legend}")
+      report.log(s"Legend from human-readable names to mCRL2 aliases:\n${legend}")
       def legendize(args: Set[String]): String = {
         (args filter { legend.contains(_) } map { legend(_) }).mkString(", ")
       }
@@ -179,7 +180,7 @@ object Property {
       val res = attrs.foldLeft(ST(tpl, '$', '$')) { (acc, kv) =>
         acc.add(kv._1, kv._2)
       }.render
-      ctx.log(s"Rendered MCF formula:\n${res}")
+      report.log(s"Rendered MCF formula:\n${res}")
       Right(res)
     }
 
@@ -190,7 +191,7 @@ object Property {
         fml <- formula(spec, environment)
       } yield {
         val path = tmpdir.resolve(Paths.get(shortName ++ ".mcf"))
-        ctx.log(s"Creating MCF file: ${path.getFileName}")
+        report.log(s"Creating MCF file: ${path.getFileName}")
         Files.write(path, fml.getBytes)
       }
     }
@@ -205,7 +206,7 @@ object Property {
         val fname = lpsfile.getName(lpsfile.getNameCount - 1).toString
         val fnameNoExt = fname.substring(0, fname.lastIndexOf('.'))
         val path = tmpdir.resolve(Paths.get(s"${fnameNoExt}-${shortName}.pbes"))
-        ctx.log(s"Creating PBES file: ${path.getFileName}")
+        report.log(s"Creating PBES file: ${path.getFileName}")
         val cmd = "lps2pbes"
         val args = Seq("-f", s"${mcf}", s"${lpsfile}", s"${path}")
         runCommand(cmd, args)
@@ -255,7 +256,7 @@ object Property {
         for {
           cmdArgs <- pbesCmdArgs(tmpdir, lpsfile, spec, environment)
         } yield {
-          ctx.log(s"Verifying property with legend:\n${spec.legendHR}")
+          report.log(s"Verifying property with legend:\n${spec.legendHR}")
           pbesResult(runCommand(cmdArgs._1, cmdArgs._2))
         }
       } else {
@@ -274,7 +275,7 @@ object Property {
                           states: () => String): Either[String, Boolean] = for {
         cmdArgs <- pbesCmdArgs(tmpdir, lpsfile, spec, environment)
     } yield {
-      ctx.warning(s"Benchmarking: ${options.specName}, ${shortName}. Please wait...")
+      report.warning(s"Benchmarking: ${options.specName}, ${shortName}. Please wait...")
       val (cmd, args) = cmdArgs
       
       val bench: Any => (Boolean, Long) = { _ =>
@@ -283,7 +284,7 @@ object Property {
       }
       
       val results = (1 to options.benchmarkReps).map { n => 
-        ctx.log(s"Benchmarking: run ${n} of ${options.benchmarkReps}")
+        report.log(s"Benchmarking: run ${n} of ${options.benchmarkReps}")
         bench(n)
       }
 
@@ -294,7 +295,7 @@ object Property {
       val result = results(0)._1 
 
       val output = tmpdir.resolve(Paths.get(s"benchmark-${options.specName}-${shortName}.csv"))
-      ctx.warning(s"Writing benchmark results on: ${output}", options.position)
+      report.warning(s"Writing benchmark results on: ${output}", options.position)
       val csv = Seq("result,states,nanosecs") ++ results.map { (r, t) =>
         s"${r},${states()},${t}"
       } ++ Seq("") // Empty element, just to add a final "\n" (see next line)
@@ -382,8 +383,7 @@ object Property {
 
   case class Not(p: Property)
                 (options: Options) extends Property {
-        override
-    def verify(tmpdir: Path, lpsfile: Path, spec: Spec,
+    override def verify(tmpdir: Path, lpsfile: Path, spec: Spec,
                environment: Verifier.VerifEnv,
                states: () => String): Either[String, Boolean] = for {
       res <- p.verify(tmpdir, lpsfile, spec, environment, states)
@@ -426,7 +426,7 @@ object Property {
       p <- apply(rp, observables, options)
     } yield Not(p)(options)
     case rp: RawProperty.App => {
-      ctx.log(s"Selecting property ${rp.name} from:\n${BaseProperties.all}")
+      report.log(s"Selecting property ${rp.name} from:\n${BaseProperties.all}")
       val prop = BaseProperties.all.filter { _.name == rp.name }
       if (prop.size == 0) {
         Left(s"Unknown property: ${rp.name}")

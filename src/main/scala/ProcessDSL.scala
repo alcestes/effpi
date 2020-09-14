@@ -59,17 +59,17 @@ case object RecY extends RecY[Unit]
 sealed abstract class RecZ[A]() extends RecVar[A]("Z")
 case object RecZ extends RecZ[Unit]
 
-case class Def[V <: ProcVar, A, P1 <: Process, P2 <: Process](name: V[A], pdef: A => P1, in: () => P2) extends Process
-case class Call[V <: ProcVar, A](procvar: V[A], arg: A) extends Process
+case class Def[V[X] <: ProcVar[X], A, P1 <: Process, P2 <: Process](name: V[A], pdef: A => P1, in: () => P2) extends Process
+case class Call[V[X]  <: ProcVar[X], A](procvar: V[A], arg: A) extends Process
 
 case class >>:[P1 <: Process, P2 <: Process](p1: () => P1, p2: () => P2) extends Process
 
 package object dsl {
   /** Recursion: `P` loops on `V`, that represent a bound recursion variable. */
-  type Rec[V <: RecVar, P <: Process] = Def[V, Unit, P, P]
+  type Rec[V[X] <: RecVar[X], P <: Process] = Def[V, Unit, P, P]
 
   /** Loop on a recursion variable `V`, expected to be bound by [[Rec]].*/
-  type Loop[V <: RecVar] = Call[V, Unit]
+  type Loop[V[X] <: RecVar[X]] = Call[V, Unit]
 
   /** Execute `P1` and `P2` in parallel. */
   type Par[P1 <: Process, P2 <: Process] = Fork[P1] >>: P2
@@ -154,7 +154,7 @@ package object dsl {
   *
   * This is an experimental type, with the goal of modelling the
   * [[https://doc.akka.io/docs/akka/2.5/actors.html#ask-send-and-receive-future "ask pattern"]]. */
-  type Yielding[A, P <: Process] = given YieldCtx[A] => P
+  type Yielding[A, P <: Process] = YieldCtx[A] ?=> P
 
   /** Do nothing (inactive process). */
   case object nil extends PNil
@@ -266,17 +266,17 @@ package object dsl {
   * This is an experimental method, that can only be invoked within a process
   * typed by [[Yielding]]. Its goal is to capture the
   * [[https://doc.akka.io/docs/akka/2.5/actors.html#ask-send-and-receive-future "ask pattern"]]. */
-  def pyield[A](v: A): given YieldCtx[A] => Yield[A] = {
+  def pyield[A](v: A): YieldCtx[A] ?=> Yield[A] = {
     Yield[A](v)(Some(implicitly[YieldCtx[A]]))
   }
 
-  def pdef[V <: ProcVar, A, P1 <: Process, P2 <: Process](name: V[A])(pdef: A => P1)(in: => P2) = Def[V, A, P1, P2](name, pdef, () => in)
+  def pdef[V[X] <: ProcVar[X], A, P1 <: Process, P2 <: Process](name: V[A])(pdef: A => P1)(in: => P2) = Def[V, A, P1, P2](name, pdef, () => in)
 
-  def pcall[V <: ProcVar, A](name: V[A], arg: A) = Call[V,A](name, arg)
+  def pcall[V[X] <: ProcVar[X], A](name: V[A], arg: A) = Call[V,A](name, arg)
 
-  def rec[V <: RecVar, P <: Process](v: V[Unit])(p: => P): Rec[V, P] = Def[V, Unit, P, P](v, (x) => p, () => p)
+  def rec[V[X] <: RecVar[X], P <: Process](v: V[Unit])(p: => P): Rec[V, P] = Def[V, Unit, P, P](v, (x) => p, () => p)
 
-  def loop[V <: RecVar](v: V[Unit]): Loop[V] = Call[V, Unit](v, ())
+  def loop[V[X] <: RecVar[X]](v: V[Unit]): Loop[V] = Call[V, Unit](v, ())
 
   def eval(p: Process): Try[Unit] = Try(eval(Map(), Nil, p))
 

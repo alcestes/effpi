@@ -106,7 +106,7 @@ object patterns {
     val pipe = ActorChannel[Resp]()
     val askProcess = {
       pdsl.send(srv, query(pipe.ref)) >>
-      pdsl.receive(pipe.mbox) { msg: Resp =>
+      pdsl.receive(pipe.mbox) { (msg: Resp) =>
         respPromise.success(msg)
         pdsl.nil
       }

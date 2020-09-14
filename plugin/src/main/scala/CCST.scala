@@ -10,6 +10,7 @@ import effpi.verifier.{ValueType, TypeVar}
 import effpi.verifier.util.optList
 
 import dotty.tools.dotc.core.Contexts.Context
+import dotty.tools.dotc.report
 
 /** A pair combining a channel and a payload type */
 protected[verifier] case class ChanPayload(chan: ValueType, payload: ValueType)
@@ -64,13 +65,13 @@ protected[verifier] sealed abstract class CCST {
    // TODO: ideally, we should not have `ctx` in this class...
    def approxUses(v: TypeVar)(implicit ctx: Context): Set[ValueType] = {
     val chans = (inputs ++ outputs).map(_.chan)
-    ctx.log(s"Channels used for I/O:\n${chans}")
+    report.log(s"Channels used for I/O:\n${chans}")
     chans.filter { c =>
       // Here we compare both:
       //   - `v` with `c` (it works when `v` derives from `v.type` in a spec)
       //   - `v.widened` with `c` (it works when `v` is an observable variable)
       val res = v.orig <:< c.orig || v.widened.orig <:< c.orig
-      ctx.log(s"Comparing for approximation (getting ${res}):\n${v.orig} <:< ${c.orig} OR\n${v.widened.orig} <:< ${c.orig}")
+      report.log(s"Comparing for approximation (getting ${res}):\n${v.orig} <:< ${c.orig} OR\n${v.widened.orig} <:< ${c.orig}")
       res
     }
    }
@@ -168,7 +169,7 @@ object CCST {
             probes.filter( p =>
               p.orig <:< depfun.argtype.orig
             ).map( p => {
-              ctx.log(s"Expanding branching for:\nprobe: ${p}\ntype: ${depfun.argtype.orig}")
+              report.log(s"Expanding branching for:\nprobe: ${p}\ntype: ${depfun.argtype.orig}")
               for {
                 b <- apply(depfun.ret.subst(depfun.arg, p), obs, probes, outputs)
               } yield (In(chan, p), b)
@@ -180,7 +181,7 @@ object CCST {
           outputs.filter( o =>
             canCommunicate(chan, o.chan)
           ).map( o => {
-            ctx.log(s"Expanding branching for:\noutput on: ${o.chan}\ntype: ${o.payload.orig}")
+            report.log(s"Expanding branching for:\noutput on: ${o.chan}\ntype: ${o.payload.orig}")
             for {
                 b <- apply(depfun.ret.subst(depfun.arg, o.payload), obs, probes, outputs)
               } yield (In(o.chan, o.payload), b)
@@ -189,7 +190,7 @@ object CCST {
       )
       branches match {
         case None => {
-          ctx.log(s"CCST(): cannot convert to branching: ${t}")
+          report.log(s"CCST(): cannot convert to branching: ${t}")
           None
         }
         case Some(bs) => {

@@ -8,6 +8,7 @@ import effpi.verifier.ccst
 import effpi.verifier.util.resource
 
 import dotty.tools.dotc.core.Contexts.Context
+import dotty.tools.dotc.report
 
 /** Representation of an mCRL2 process */
 protected[verifier] sealed abstract class Spec(ccstTerm: ccst.CCST, val description: String = "") {
@@ -71,7 +72,7 @@ protected[verifier] sealed abstract class Spec(ccstTerm: ccst.CCST, val descript
   private val channelTypes = FreshNames[ValueType]("Channel types",
                                         "ct(", ")")
 
-  private val groundTypes = FreshNames("Ground types",
+  private val groundTypes = FreshNames[ValueType]("Ground types",
                                        "gt(", ")", Map[ValueType, String](
     // Insert here a mapping to define commonly-used ground types
     // NOTE: must be kept in sync with resources/mpst-preamble.mcrl2
@@ -128,7 +129,7 @@ protected[verifier] sealed abstract class Spec(ccstTerm: ccst.CCST, val descript
       // NOTE: this is a kludge!
       def typeSuffixes(t: String): Set[String] = {
         val splits = List(t.split("\\."):_*)
-        ctx.log(s"Type ${t} split into:\n${splits}")
+        report.log(s"Type ${t} split into:\n${splits}")
         splits.reverse.foldLeft(List[String]()) { (acc, tp) =>
           (acc match {
             case Nil => List(tp)
@@ -153,13 +154,14 @@ protected[verifier] sealed abstract class Spec(ccstTerm: ccst.CCST, val descript
       (stringify(kv._1), s"mtype(${kv._2})")
     }
 
-    ctx.log(s"Ground types:\n${groundTypes.store}")
+    report.log(s"Ground types:\n${groundTypes.store}")
     val groundTypesHR: Map[String, String] = Map(
-      groundTypes.store.toSeq.map { (k, v) =>
+      // FIXME: strangely, the types of 'k' and 'v' below cannot be inferred
+      groundTypes.store.toSeq.map { (k: ValueType, v: String) =>
         stringifyGT(k).map((_, s"gtype(${v})"))
       }.flatten:_*
     )
-    ctx.log(s"Human-readable legend for ground types:\n${groundTypesHR}")
+    report.log(s"Human-readable legend for ground types:\n${groundTypesHR}")
 
     variablesHR ++ mailboxesHR ++ groundTypesHR
   }

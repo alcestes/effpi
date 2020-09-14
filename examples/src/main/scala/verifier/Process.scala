@@ -50,7 +50,7 @@ object ProcessVerifExamples {
                (implicit timeout: Duration): Process3Cont[c1.type, c2.type] = {
     println("P2: Sending 42, waiting for answer")
     send(c1, 42) >>
-    receive(c2) { x: String =>
+    receive(c2) { (x: String) =>
       println(s"P2: Received: ${x}")
       nil
     }

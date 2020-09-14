@@ -89,7 +89,7 @@ package object implementation {
     par(
       producer(data1),
       producer(data2),
-      receive(cm) { code: FilterCode => 
+      receive(cm) { (code: FilterCode) => 
         code(data1, data2, o)
       }
     )

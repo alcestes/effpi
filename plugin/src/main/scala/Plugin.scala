@@ -10,9 +10,9 @@ import dotty.tools.dotc.core.Contexts.Context
 import dotty.tools.dotc.core.Phases.Phase
 import dotty.tools.dotc.core.Constants.Constant
 import dotty.tools.dotc.core.Decorators._
-import dotty.tools.dotc.core.Symbols.Symbol
+import dotty.tools.dotc.core.Symbols.requiredClassRef
 
-import dotty.tools.dotc.plugins
+import dotty.tools.dotc.{plugins, report}
 import dotty.tools.dotc.ast.Trees
 import dotty.tools.dotc.ast.tpd
 import dotty.tools.dotc.ast.tpd.Tree
@@ -188,53 +188,53 @@ object Verifier {
     // Classes from the process and actor DSLs
   protected[verifier] object DSL {
     def InChannel(implicit ctx: Context) = {
-      ctx.requiredClassRef("effpi.channel.InChannel").symbol.asClass
+      requiredClassRef("effpi.channel.InChannel").symbol.asClass
     }
 
     def OutChannel(implicit ctx: Context) = {
-      ctx.requiredClassRef("effpi.channel.InChannel").symbol.asClass
+      requiredClassRef("effpi.channel.InChannel").symbol.asClass
     }
 
     def Behavior(implicit ctx: Context) = {
-      ctx.requiredClassRef("effpi.actor.dsl.Behavior").symbol.asClass
+      requiredClassRef("effpi.actor.dsl.Behavior").symbol.asClass
     }
     // def Actor(implicit ctx: Context) = {
-    //   ctx.requiredClassRef("effpi.actor.dsl.Actor").symbol.asClass
+    //   requiredClassRef("effpi.actor.dsl.Actor").symbol.asClass
     // }
     def ActorCtx(implicit ctx: Context) = {
-      ctx.requiredClassRef("effpi.actor.ActorCtx").symbol.asClass
+      requiredClassRef("effpi.actor.ActorCtx").symbol.asClass
     }
 
     def Mailbox(implicit ctx: Context) = {
-      ctx.requiredClassRef("effpi.actor.Mailbox").symbol.asClass
+      requiredClassRef("effpi.actor.Mailbox").symbol.asClass
     }
 
     def Process(implicit ctx: Context) = {
-      ctx.requiredClassRef("effpi.process.Process").symbol.asClass
+      requiredClassRef("effpi.process.Process").symbol.asClass
     }
     def Nil(implicit ctx: Context) = {
-      ctx.requiredClassRef("effpi.process.PNil").symbol.asClass
+      requiredClassRef("effpi.process.PNil").symbol.asClass
     }
     def Def(implicit ctx: Context) = {
-      ctx.requiredClassRef("effpi.process.Def").symbol.asClass
+      requiredClassRef("effpi.process.Def").symbol.asClass
     }
     def Call(implicit ctx: Context) = {
-      ctx.requiredClassRef("effpi.process.Call").symbol.asClass
+      requiredClassRef("effpi.process.Call").symbol.asClass
     }
     def In(implicit ctx: Context) = {
-      ctx.requiredClassRef("effpi.process.In").symbol.asClass
+      requiredClassRef("effpi.process.In").symbol.asClass
     }
     def Out(implicit ctx: Context) = {
-      ctx.requiredClassRef("effpi.process.Out").symbol.asClass
+      requiredClassRef("effpi.process.Out").symbol.asClass
     }
     def Seq(implicit ctx: Context) = {
-      ctx.requiredClassRef("effpi.process.>>:").symbol.asClass
+      requiredClassRef("effpi.process.>>:").symbol.asClass
     }
     def Fork(implicit ctx: Context) = {
-      ctx.requiredClassRef("effpi.process.Fork").symbol.asClass
+      requiredClassRef("effpi.process.Fork").symbol.asClass
     }
     def ProcVar(implicit ctx: Context) = {
-      ctx.requiredClassRef("effpi.process.ProcVar").symbol.asClass
+      requiredClassRef("effpi.process.ProcVar").symbol.asClass
     }
   }
 
@@ -287,8 +287,8 @@ object Verifier {
       case _ if !retrying => canCommunicate(t2, t1, true)
       case _ => false
     }
-    //if (ret) ctx.log(s"Can communicate:\n${t1.orig.show}\n${t2.orig.show}")
-    //else ctx.log(s"Cannot communicate:\n${t1.orig.show}\n${t2.orig.show}")
+    //if (ret) report.log(s"Can communicate:\n${t1.orig.show}\n${t2.orig.show}")
+    //else report.log(s"Cannot communicate:\n${t1.orig.show}\n${t2.orig.show}")
     ret
   }
 }
@@ -338,19 +338,22 @@ class Verifier extends plugins.PluginPhase with plugins.StandardPlugin {
   }
 
   def Annotation(implicit ctx: Context) = {
-    ctx.requiredClassRef("effpi.verifier.verify").symbol.asClass
+    requiredClassRef("effpi.verifier.verify").symbol.asClass
   }
 
   // Useful Scala classes
   private object Scala {
     def Function1(implicit ctx: Context) = {
-      ctx.requiredClassRef("scala.Function1").symbol.asClass
+      requiredClassRef("scala.Function1").symbol.asClass
     }
     def ImplicitFunction1(implicit ctx: Context) = {
-      ctx.requiredClassRef("scala.ImplicitFunction1").symbol.asClass
+      requiredClassRef("scala.ImplicitFunction1").symbol.asClass
+    }
+    def ContextFunction1(implicit ctx: Context) = {
+      requiredClassRef("scala.ContextFunction1").symbol.asClass
     }
     def Unit(implicit ctx: Context) = {
-      ctx.requiredClassRef("scala.Unit").symbol.asClass
+      requiredClassRef("scala.Unit").symbol.asClass
     }
   }
 
@@ -371,7 +374,7 @@ class Verifier extends plugins.PluginPhase with plugins.StandardPlugin {
         vt <- toValueType(w)
       } yield vt
       if (vte.isEmpty) {
-        ctx.warning(s"Cannot check: ${tree.show}")
+        report.warning(s"Cannot check: ${tree.show}")
       }
       TypeVar(x.name, vte.get)(x.tpe)
     }.toSet
@@ -399,17 +402,17 @@ class Verifier extends plugins.PluginPhase with plugins.StandardPlugin {
     if (tree.symbol.hasAnnotation(Annotation)) {
       val annotOpt = getAnnotation(tree)
       if (annotOpt.isEmpty) {
-        ctx.error("Unable to parse annotations", tree.sourcePos)
+        report.error("Unable to parse annotations", tree.sourcePos)
         return tree
       }
       val annot = annotOpt.get
       val unknownArgs = annot.keySet.filter { !ARGS_SET.contains(_) }
       if (!unknownArgs.isEmpty) {
-        ctx.error(s"Invalid annotation arguments: ${unknownArgs}", tree.sourcePos)
+        report.error(s"Invalid annotation arguments: ${unknownArgs}", tree.sourcePos)
         return tree
       }
       if (!annot.keySet.contains(ARG_PROPERTY)) {
-        ctx.error("No property has been specified", tree.sourcePos)
+        report.error("No property has been specified", tree.sourcePos)
         return tree
       }
       val propStr = annot(ARG_PROPERTY)
@@ -423,7 +426,7 @@ class Verifier extends plugins.PluginPhase with plugins.StandardPlugin {
         v
       } catch {
         case e: NumberFormatException => {
-          ctx.error(s"Argument ${ARG_BENCHMARK} must be a non-negative integer (got '${benchmarkRepsStr}'")
+          report.error(s"Argument ${ARG_BENCHMARK} must be a non-negative integer (got '${benchmarkRepsStr}'")
           return tree
         }
       }
@@ -432,7 +435,7 @@ class Verifier extends plugins.PluginPhase with plugins.StandardPlugin {
         case "true"  => true
         case "false" => false
         case other => {
-          ctx.error(s"Argument ${ARG_BIGLTS} must be 'true' or 'false' (got '${other}'")
+          report.error(s"Argument ${ARG_BIGLTS} must be 'true' or 'false' (got '${other}'")
           return tree
         }
       }
@@ -459,7 +462,7 @@ class Verifier extends plugins.PluginPhase with plugins.StandardPlugin {
 
       if (prop.isLeft) {
         // FIXME: remove null, refactor for the Scala 2.13 stdlib
-        ctx.error(s"Property error: ${prop.swap.getOrElse(null)}", tree.sourcePos)
+        report.error(s"Property error: ${prop.swap.getOrElse(null)}", tree.sourcePos)
         return tree
       }
 
@@ -472,39 +475,39 @@ class Verifier extends plugins.PluginPhase with plugins.StandardPlugin {
           case Mailbox (_)=> mcrl2.Spec.MAILBOX_ALIAS // NOTE: assume 1 mailbox
         } }
       }
-      ctx.log(s"Analysing type:\n${toString(tpe)}")
-      ctx.log(s"Observables:\n${observables}")
-      ctx.log(s"Property variables:\n${pvars}")
-      ctx.log(s"Observed:\n${obs}")
+      report.log(s"Analysing type:\n${toString(tpe)}")
+      report.log(s"Observables:\n${observables}")
+      report.log(s"Property variables:\n${pvars}")
+      report.log(s"Observed:\n${obs}")
 
       simplify(tpe) match {
         case None => {
-          ctx.warning(s"Unable to simplify: ${toString(tpe)}", tree.sourcePos)
+          report.warning(s"Unable to simplify: ${toString(tpe)}", tree.sourcePos)
         }
         case Some(s) => {
-          ctx.log(s"Simplified type:\n${s}")  
+          report.log(s"Simplified type:\n${s}")  
           toBehType(s) match {
-            case None => ctx.warning(s"Unable to determine behavioural type from: ${toString(tpe)}", tree.sourcePos)
+            case None => report.warning(s"Unable to determine behavioural type from: ${toString(tpe)}", tree.sourcePos)
             case Some(b) => {
-              ctx.log(s"Behavioral type:\n${b}")
+              report.log(s"Behavioral type:\n${b}")
               val fullObs = obs ++ b.mailboxes // We also observe all mailboxes
               val baseEnv: Verifier.VerifEnv = Set(fullObs.toSeq:_*)
               val fullEnv = b.fullEnv(fullObs, baseEnv)
               assert(fullObs.forall { o => fullEnv.contains(o) } )
               ccst.CCST(b, fullObs, fullEnv, Set()) match {
                 case None => {
-                  ctx.warning(s"Unable to determine CCST spec from: ${toString(tpe)}", tree.sourcePos)
+                  report.warning(s"Unable to determine CCST spec from: ${toString(tpe)}", tree.sourcePos)
                 }
                 case Some(rawccs0) => {
-                  ctx.log(s"CCST spec:\n${rawccs0}")
+                  report.log(s"CCST spec:\n${rawccs0}")
                   // TODO: here we should allow for a fixpoint loop, for
                   // greater analysis accuracy
                   // NOTE: ccst.CCST() succeeded: we assume it succeeds again
                   val rawccs = ccst.CCST(b, fullObs, fullEnv, rawccs0.outputs).get
                   val ccs = rawccs.barendregt
-                  ctx.log(s"CCST spec with Barendregt convention:\n${ccs}")
+                  report.log(s"CCST spec with Barendregt convention:\n${ccs}")
                   val mspec = mcrl2.Spec(ccs)
-                  ctx.log(s"mCRL2 spec:\n${mspec.show}")
+                  report.log(s"mCRL2 spec:\n${mspec.show}")
                   
                   // FIXME: remove null, refactor for the Scala 2.13 stdlib
                   val verifier = mcrl2.Verifier(mspec, prop.getOrElse(null),
@@ -521,11 +524,11 @@ class Verifier extends plugins.PluginPhase with plugins.StandardPlugin {
 
                   verifier.verify(fullEnv) match {
                     case Left(err) => {
-                      ctx.error(s"Verification failed: ${err}")
+                      report.error(s"Verification failed: ${err}")
                     }
                     case Right(res) => {
                       if (!res) {
-                        ctx.warning(s"The property does not hold", tree.sourcePos)
+                        report.warning(s"The property does not hold", tree.sourcePos)
                       }
                     }
                   }
@@ -548,18 +551,18 @@ class Verifier extends plugins.PluginPhase with plugins.StandardPlugin {
         case other => simplify(other)
       }
     case app @ Types.AppliedType(tycon, args) => {
-      // ctx.log(s"Simplifying applied type:\n${app.show}")
+      // report.log(s"Simplifying applied type:\n${app.show}")
       val dealiased = tycon.safeDealias
-      // ctx.log(s"Dealiased tycon:\n${dealiased.show}")
+      // report.log(s"Dealiased tycon:\n${dealiased.show}")
       dealiased match {
         case t: Types.TypeLambda => {
           val reducer = new TypeApplications.Reducer(t, args)
           val reduced = reducer(t.resType)
           if (reducer.allReplaced) {
-            // ctx.log(s"Applied type reduced to:\n${reduced.show}")
+            // report.log(s"Applied type reduced to:\n${reduced.show}")
             simplify(reduced)
           } else {
-            ctx.warning(s"Cannot fully reduce TypeLambda:\n${t.show}\n${reduced.show}")
+            report.warning(s"Cannot fully reduce TypeLambda:\n${t.show}\n${reduced.show}")
             None
           }
         }
@@ -586,7 +589,7 @@ class Verifier extends plugins.PluginPhase with plugins.StandardPlugin {
           case _ => None
         }
       } else {
-        ctx.warning(s"Found unsupported TypeLambda: ${tl.show}")
+        report.warning(s"Found unsupported TypeLambda: ${tl.show}")
         None
       }
     }
@@ -597,7 +600,7 @@ class Verifier extends plugins.PluginPhase with plugins.StandardPlugin {
     }
     case mt: Types.MethodType => {
       // FIXME: can we refine paramInfos?
-      mt.paramInfos.foreach { pi => pi.paramNamess ; ctx.log(s"Param info: ${pi.show}")}
+      mt.paramInfos.foreach { pi => pi.paramNamess ; report.log(s"Param info: ${pi.show}")}
       for {
         pl <- optList(mt.paramInfos.map(simplify(_)))
         r <- simplify(mt.resType)
@@ -614,7 +617,7 @@ class Verifier extends plugins.PluginPhase with plugins.StandardPlugin {
     case tb: Types.TypeBounds => Some(TypeBounds(tb))
     case _ => None
   }) orElse {
-    ctx.log(s"Cannot simplify: ${toString(t)} (${t})")
+    report.log(s"Cannot simplify: ${toString(t)} (${t})")
     None
   }
 
@@ -625,7 +628,8 @@ class Verifier extends plugins.PluginPhase with plugins.StandardPlugin {
       else None
     }
     case App(TypeRef(r), args) => {
-      if (r.typeSymbol == Scala.ImplicitFunction1) {
+      if (r.typeSymbol == Scala.ImplicitFunction1 ||
+          r.typeSymbol == Scala.ContextFunction1) {
         // This should be an Actor[_,_] type
         assert(args.length == 2)
         args(0) match {
@@ -637,7 +641,7 @@ class Verifier extends plugins.PluginPhase with plugins.StandardPlugin {
               // We will recognise uses of mailbox(es) as In[Mailbox...]
               toBehType(args(1))
             } else {
-              ctx.log(s"Unsupported implicit function application: ${r2}")
+              report.log(s"Unsupported implicit function application: ${r2}")
               None
             }
           }
@@ -675,18 +679,18 @@ class Verifier extends plugins.PluginPhase with plugins.StandardPlugin {
               if (args(2) == args(3)) {
                 for { body <- toBehType(args(3)) } yield RecDef(ref.show, body)
               } else {
-                ctx.log(s"Def: mismatching body and continuation:\n${args(3)}\n${args(4)}")
+                report.log(s"Def: mismatching body and continuation:\n${args(3)}\n${args(4)}")
                 None
               }
             }
             case _ => {
               // For now, we only support simple recursion without parameters
-              ctx.log(s"Def: unsupported recursion argument type: ${args(1)}")
+              report.log(s"Def: unsupported recursion argument type: ${args(1)}")
               None
             }
           }
           case _ => {
-            ctx.log(s"Def: unsupported recursion variable: ${args(0)}")
+            report.log(s"Def: unsupported recursion variable: ${args(0)}")
             None
           }
         }
@@ -699,23 +703,26 @@ class Verifier extends plugins.PluginPhase with plugins.StandardPlugin {
             }
             case _ => {
               // For now, we only support simple recursion without parameters
-              ctx.log(s"Call: unsupported recursion argument type: ${args(1)}")
+              report.log(s"Call: unsupported recursion argument type: ${args(1)}")
               None
             }
           }
           case _ => {
-            ctx.log(s"Call: unsupported recursion variable: ${args(0)}")
+            report.log(s"Call: unsupported recursion variable: ${args(0)}")
             None
           }
         }
-      } else None
+      } else {
+        report.log(s"App: unsupported TypeSymbol: ${r.typeSymbol}")
+        None
+      }
     }
     case OrType(opt1, opt2) => {
       for { o1 <- toBehType(opt1); o2 <- toBehType(opt2) } yield Or(o1, o2)
     }
     case _ => None
   }) orElse {
-    ctx.log(s"Cannot convert to behavioral type:\n${t}")
+    report.log(s"Cannot convert to behavioral type:\n${t}")
     None
   }
 
@@ -741,7 +748,7 @@ class Verifier extends plugins.PluginPhase with plugins.StandardPlugin {
     case np: NoPrefix => Some(np)
     case tb: TypeBounds => Some(tb)
     case _ => {
-      ctx.log(s"Cannot convert to ValueType: ${t}")
+      report.log(s"Cannot convert to ValueType: ${t}")
       None
     }
   }
@@ -760,7 +767,7 @@ class Verifier extends plugins.PluginPhase with plugins.StandardPlugin {
     case m @ MethodType(paramNames, paramTypes, ret) => {
       assert(paramNames.length == paramTypes.length)
       if (paramNames.length != 1) {
-        ctx.log(s"toDepFun: cannot convert MethodType with 2+ parameters: ${t}")
+        report.log(s"toDepFun: cannot convert MethodType with 2+ parameters: ${t}")
         None
       } else {
         for {
@@ -775,7 +782,7 @@ class Verifier extends plugins.PluginPhase with plugins.StandardPlugin {
     // } yield DepFun(/* TODO: create a fresh name here*/, argt, rett)
     case _ => None
   }) orElse {
-    ctx.log(s"Cannot convert to ${DepFun.getClass.getName}: ${t}")
+    report.log(s"Cannot convert to ${DepFun.getClass.getName}: ${t}")
     None
   }
 
@@ -802,12 +809,12 @@ class Verifier extends plugins.PluginPhase with plugins.StandardPlugin {
             case Trees.Ident(c) =>
               Some(args + (name.toString -> c.toString))
             case other => {
-              ctx.error(s"Unexpected annotation: ${other}")
+              report.error(s"Unexpected annotation: ${other}")
               None
             }
           }
           case other => {
-            ctx.error(s"Unexpected annotation: ${other}")
+            report.error(s"Unexpected annotation: ${other}")
             None
           }
         }
