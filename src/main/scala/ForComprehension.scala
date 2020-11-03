@@ -45,7 +45,9 @@ case class Recv[C <: InChannel[A], A](c: C)(implicit timeout: Duration) extends 
 abstract class Seq[P1 <: Process[?], P2 <: Process[Y], Y] extends Process[Y]
 
 /* Execute a process of type P and then yield a value of type Y */
-abstract class Yielding[P <: Process[?], Y] extends Process[Y]
+abstract class Yielding[P <: Process[?], Y] extends Process[Y] {
+  def map[Y2](f2: Y => Y2): Yielding[P, Y2]
+}
 
 /** Receive a value of type A from a channel of type C, and continue
   *  as a process of type F.
@@ -154,7 +156,6 @@ def test2(c: Channel[Int], d: Channel[Unit], e: Channel[Unit])
   z <- send(e, ())
 } yield ("Hello", a)
 
-
 def test3(c: Channel[Int], d: Channel[Unit], e: Channel[Unit])
          (implicit timeout: Duration): Process[(String, Int)] = for {
   x <- test1(c)
@@ -206,6 +207,34 @@ def test3MatchB(c: OutChannel[A|B], x: A|B): Seq[Out[c.type, x.type], Yielding[O
   _ <- send(c, x)
   _ <- send(c, x)
 } yield x
+
+import scala.compiletime.S
+import scala.compiletime.ops.int.{+,-}
+
+type Protocol4[C <: Channel[A|B], N <: Int] <: Process[Int] = N match {
+  case 0 => Yielding[Out[C, A], N]
+  case S[?] => Seq[Out[C, B], Protocol4[C, N - 1],
+                       Int]
+}
+
+/*
+def test4(c: OutChannel[A|B], n: Int): Protocol4[c.type, n.type] = n match {
+  case _: 0 => for { _ <- send(c, A()) } yield n
+  case n: S[?] => for {
+    _ <- send(c, A())
+    ret <- test4(c, n-1)
+  } yield ret
+}
+*/
+
+def test4(c: OutChannel[A|B]): Protocol4[c.type, 5] = for {
+  _ <- send(c, B())
+  _ <- send(c, B())
+  _ <- send(c, B())
+  _ <- send(c, B())
+  _ <- send(c, B())
+  _ <- send(c, A())
+} yield 0
 
 def main(): Unit = {
   implicit val timeout = Duration("5 seconds")
