@@ -211,7 +211,7 @@ def test3MatchB(c: OutChannel[A|B], x: A|B): Seq[Out[c.type, x.type], Yielding[O
 import scala.compiletime.S
 import scala.compiletime.ops.int.{+,-}
 
-type Protocol4[C <: Channel[A|B], N <: Int] <: Process[Int] = N match {
+type Protocol4[C <: OutChannel[A|B], N <: Int] <: Process[Int] = N match {
   case 0 => Yielding[Out[C, A], N]
   case S[?] => Seq[Out[C, B], Protocol4[C, N - 1],
                        Int]
