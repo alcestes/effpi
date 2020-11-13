@@ -1,4 +1,4 @@
-val dottyVersion = "0.27.0-RC1"
+val dottyVersion = "3.0.0-M1"
 val effpiVersion = "0.0.3"
 
 val useEffpiPlugin = settingKey[Boolean]("Use the effpi compiler plugin in sub-projects.")
@@ -27,7 +27,7 @@ lazy val plugin = project
 
     // TODO: exclude unnecessary dependencies from assembly jar
     libraryDependencies ++= Seq(
-      "ch.epfl.lamp" %% "dotty-compiler" % scalaVersion.value % "provided",
+      "org.scala-lang" %% "scala3-compiler" % scalaVersion.value % "provided",
       ("org.scala-lang.modules" %% "scala-parser-combinators" % "1.1.2").withDottyCompat(scalaVersion.value),
       "org.antlr" % "ST4" % "4.3.1"
     ),
