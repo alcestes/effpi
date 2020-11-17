@@ -7,6 +7,8 @@ based on _type-level model checking_.
 
 The home page of Effpi is: <https://alcestes.github.io/effpi>
 
+**Note**: to compile Effpi, JDK 11 is recommended.
+
 ## Authors
 
 Effpi is developed by:
