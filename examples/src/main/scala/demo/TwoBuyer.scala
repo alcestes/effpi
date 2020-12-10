@@ -129,11 +129,11 @@ package implementation {
             cBobResp: InChannel[OK|Cancel|Negotiate],
             cResp: OutChannel[Buy | Cancel],
             cConf: InChannel[Confirm]): Alice[cTitle.type, cQuote.type, cBobContrib.type, cBobResp.type, cResp.type, cConf.type] = {
-    //send(cTitle, "Book A") >> {
+    send(cTitle, "Book A") >> {
       receive(cQuote) { (q: Quote|NotAvailable) =>
         handleQuote(q, cBobContrib, cBobResp, cResp, cConf)
       }
-    //} 
+    } 
   }
 
   def handleQuote(q: Quote|NotAvailable, cBobContrib: OutChannel[Contrib|Cancel],
@@ -156,8 +156,8 @@ package implementation {
           }
         }
       }
-   */
-
+  */
+  
   def bobRespMatch(res: OK|Cancel|Negotiate,
                    cResp: OutChannel[Buy | Cancel],
                    cConf: InChannel[Confirm]): BobRespMatch[res.type, cResp.type, cConf.type] = {
