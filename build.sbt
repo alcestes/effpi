@@ -1,5 +1,5 @@
-// val dottyVersion = "3.0.0-M1"
-val dottyVersion = dottyLatestNightlyBuild.get
+val dottyVersion = "3.0.0-RC1-bin-20210124-b7eae6a-NIGHTLY"
+// val dottyVersion = dottyLatestNightlyBuild.get
 val effpiVersion = "0.0.3"
 
 val useEffpiPlugin = settingKey[Boolean]("Use the effpi compiler plugin in sub-projects.")

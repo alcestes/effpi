@@ -374,7 +374,7 @@ class VerifierPhase(keepTmp: Boolean,
       return tree
     }
     // Type widening enlarges the type of x from, e.g., Int(x) to Int
-    val obs: Verifier.ObsEnv = tree.vparamss.flatten.map { x =>
+    val obs: Verifier.ObsEnv = tree.paramss.flatten.map { x =>
       val vte = for {
         w <- simplify(x.tpe.widen)
         vt <- toValueType(w)
