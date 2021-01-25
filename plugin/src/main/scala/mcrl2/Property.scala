@@ -29,8 +29,8 @@ object PropertyParser extends RegexParsers {
   def args: Parser[List[String]] = "(" ~> (repsep(identifier, ",") <~ ")")
   def multiArgs: Parser[List[List[String]]] = args.+
 
-  def app: Parser[RawProperty] = identifier ~ multiArgs ^^ { (i, a) =>
-    RawProperty.App(i, a)
+  def app: Parser[RawProperty] = identifier ~ multiArgs ^^ { ia =>
+    RawProperty.App(ia._1, ia._2)
   }
 
   def not: Parser[RawProperty.Not] = "!" ~> property ^^ { p =>
@@ -44,7 +44,7 @@ object PropertyParser extends RegexParsers {
   def andToken: Parser[String] = "and" | "&&"
 
   def andProperty: Parser[RawProperty] = app ~ (andToken ~> andProperty).* ^^ {
-    (p, ps) => ps.foldLeft(p) { (acc, r) =>
+    pps => pps._2.foldLeft(pps._1) { (acc, r) =>
       RawProperty.And(acc, r)
     }
   }
@@ -52,7 +52,7 @@ object PropertyParser extends RegexParsers {
   def orToken: Parser[String] = "or" | "||"
 
   def or: Parser[RawProperty] = and ~ (orToken ~> and).* ^^ {
-    (p, ps) => ps.foldLeft(p) { (acc, r) =>
+    pps => pps._2.foldLeft(pps._1) { (acc, r) =>
       RawProperty.Or(acc, r)
     }
   }
