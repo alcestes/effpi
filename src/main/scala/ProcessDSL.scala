@@ -62,6 +62,8 @@ case object RecZ extends RecZ[Unit]
 case class Def[V[X] <: ProcVar[X], A, P1 <: Process, P2 <: Process](name: V[A], pdef: A => P1, in: () => P2) extends Process
 case class Call[V[X]  <: ProcVar[X], A](procvar: V[A], arg: A) extends Process
 
+case class Foreach[S <: Seq[A], A, F <: (x: A) => Process](channels: S, f: F) extends Process
+
 case class >>:[P1 <: Process, P2 <: Process](p1: () => P1, p2: () => P2) extends Process
 
 package object dsl {
@@ -170,6 +172,9 @@ package object dsl {
   * NOTE: in practice, you might probably want to use [[par]].
   */
   def fork[P <: Process](p: => P) = Fork[P](() => p)
+
+  /** Execute a process for each channel in a given sequence. */
+  def foreach[S <: Seq[A], A, F <: (x: A) => Process](channels: S)(f: F) = Foreach[S, A, F](channels, f)
 
   /** Execute two processes in parallel. */
   def par[P1 <: Process,
@@ -349,6 +354,16 @@ package object dsl {
     }
     case s: >>:[_,_] => {
       eval(env, s.p2 :: lp, s.p1())
+    }
+    case f: Foreach[?, ?, ?] => f.channels.match {
+      case ch +: ct => {
+        // FIXME: can we get rid of the casts below?
+        eval(env, ct.toList.map(c => (() => f.f.asInstanceOf[Any => Process](c))) ++ lp, f.f.asInstanceOf[Any => Process](ch))
+      }
+      case _ => lp match {
+        case Nil => ()
+        case lh :: lt => eval(env, lt, lh())
+      }
     }
   }
 }
