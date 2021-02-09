@@ -72,3 +72,47 @@ def endPhase(id: Int, ci: InChannel[Msg[?,?]], peers: Seq[OutChannel[Msg[?,?]]],
   case _: false => broadcast(id, A(), peers)
 }
 */
+
+def phase2(id: Int, ci: InChannel[Msg[?,?]],
+           peers: Seq[OutChannel[Msg[?,?]]])
+          (implicit timeout: Duration): Phase[id.type, ci.type, peers.type,
+                                              2, 2, 0, 0] = {
+  receive(ci) { msg => msg.payload match {
+    case _: A => receive (ci) { msg2 => msg2.payload match {
+      case _: A => broadcast(id, A(), peers)
+      case _: B => broadcast(id, B(), peers)
+    } }
+    case _: B => receive (ci) { msg2 => msg2.payload match {
+      case _: A => broadcast(id, B(), peers)
+      case _: B => broadcast(id, B(), peers)
+    } }
+  } }
+}
+
+def phase3(id: Int, ci: InChannel[Msg[?,?]],
+           peers: Seq[OutChannel[Msg[?,?]]])
+          (implicit timeout: Duration): Phase[id.type, ci.type, peers.type,
+                                              3, 3, 0, 0] = {
+  receive(ci) { msg => msg.payload match {
+    case _: A => receive (ci) { msg2 => msg2.payload match {
+      case _: A => receive (ci) { msg3 => msg3.payload match {
+        case _: A => broadcast(id, A(), peers)
+        case _: B => broadcast(id, A(), peers)
+      } }
+      case _: B => receive (ci) { msg3 => msg3.payload match {
+        case _: A => broadcast(id, A(), peers)
+        case _: B => broadcast(id, B(), peers)
+      } }
+    } }
+    case _: B => receive (ci) { msg2 => msg2.payload match {
+      case _: A => receive (ci) { msg3 => msg3.payload match {
+        case _: A => broadcast(id, A(), peers)
+        case _: B => broadcast(id, B(), peers)
+      } }
+      case _: B => receive (ci) { msg3 => msg3.payload match {
+        case _: A => broadcast(id, B(), peers)
+        case _: B => broadcast(id, B(), peers)
+      } }
+    } }
+  } }
+}
