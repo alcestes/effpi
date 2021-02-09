@@ -43,9 +43,9 @@ type EndPhase[Id <: Int, Ci <: InChannel[Msg[?,?]],
               Peers <: Seq[OutChannel[Msg[?,?]]],
               NPeers <: Int, As <: Int, Bs <: Int] <: Process = As <= Bs match {
   case false =>
-    Broadcast[Id, A, Peers]// >>: Phase[Id, Ci, Peers, NPeers, NPeers, 0, 0]
+    Broadcast[Id, A, Peers] >>: Loop[RecX]
   case true =>
-    Broadcast[Id, B, Peers]// >>: Phase[Id, Ci, Peers, NPeers, NPeers, 0, 0]
+    Broadcast[Id, B, Peers] >>: Loop[RecX]
 }
 
 type Broadcast[Id <: Int, V <: A|B, Peers <: Seq[OutChannel[Msg[?,?]]]] = (
@@ -79,12 +79,12 @@ def phase2(id: Int, ci: InChannel[Msg[?,?]],
                                               2, 2, 0, 0] = {
   receive(ci) { msg => msg.payload match {
     case _: A => receive (ci) { msg2 => msg2.payload match {
-      case _: A => broadcast(id, A(), peers)
-      case _: B => broadcast(id, B(), peers)
+      case _: A => broadcast(id, A(), peers) >> loop(RecX)
+      case _: B => broadcast(id, B(), peers) >> loop(RecX)
     } }
     case _: B => receive (ci) { msg2 => msg2.payload match {
-      case _: A => broadcast(id, B(), peers)
-      case _: B => broadcast(id, B(), peers)
+      case _: A => broadcast(id, B(), peers) >> loop(RecX)
+      case _: B => broadcast(id, B(), peers) >> loop(RecX)
     } }
   } }
 }
@@ -96,22 +96,22 @@ def phase3(id: Int, ci: InChannel[Msg[?,?]],
   receive(ci) { msg => msg.payload match {
     case _: A => receive (ci) { msg2 => msg2.payload match {
       case _: A => receive (ci) { msg3 => msg3.payload match {
-        case _: A => broadcast(id, A(), peers)
-        case _: B => broadcast(id, A(), peers)
+        case _: A => broadcast(id, A(), peers) >> loop(RecX)
+        case _: B => broadcast(id, A(), peers) >> loop(RecX)
       } }
       case _: B => receive (ci) { msg3 => msg3.payload match {
-        case _: A => broadcast(id, A(), peers)
-        case _: B => broadcast(id, B(), peers)
+        case _: A => broadcast(id, A(), peers) >> loop(RecX)
+        case _: B => broadcast(id, B(), peers) >> loop(RecX)
       } }
     } }
     case _: B => receive (ci) { msg2 => msg2.payload match {
       case _: A => receive (ci) { msg3 => msg3.payload match {
-        case _: A => broadcast(id, A(), peers)
-        case _: B => broadcast(id, B(), peers)
+        case _: A => broadcast(id, A(), peers) >> loop(RecX)
+        case _: B => broadcast(id, B(), peers) >> loop(RecX)
       } }
       case _: B => receive (ci) { msg3 => msg3.payload match {
-        case _: A => broadcast(id, B(), peers)
-        case _: B => broadcast(id, B(), peers)
+        case _: A => broadcast(id, B(), peers) >> loop(RecX)
+        case _: B => broadcast(id, B(), peers) >> loop(RecX)
       } }
     } }
   } }
