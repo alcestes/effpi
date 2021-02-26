@@ -62,8 +62,8 @@ def broadcast[V <: A|B](id: Int, v: V,
 }
 
 /* The following does not compile because (nA <: nB) has type Boolean,
- * instead of (nA.type <= nB.type)
-
+ * instead of (nA.type <= nB.type)*/
+/*
 def endPhase(id: Int, ci: InChannel[Msg[?,?]], peers: Seq[OutChannel[Msg[?,?]]],
              nPeers: Int, nA: Int, nB: Int): EndPhase[id.type, ci.type,
                                                       peers.type, nPeers.type,
