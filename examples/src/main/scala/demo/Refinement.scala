@@ -31,7 +31,6 @@ sealed abstract class BinaryOp[N1 <: Nat, N2 <: Nat] extends BaseNat
 
 case class Div[N1 <: Nat, N2 <: Nat] protected (n1: N1, n2: N2) extends BinaryOp[N1, N2] {
   override val value = toInt(n1) / toInt(n2)
-
 }
 
 def div[N1 <: Nat, N2 <: Nat](n1: N1, n2: N2) = Div(n1, n2)

@@ -25,6 +25,16 @@ type Agent[Id <: Int, Init <: A|B, Ci <: InChannel[Msg[?,?]],
   ]
 )
 
+/* To check:
+type Password[...] = In(C, Passwd, (pwd: Passwd) => (
+  Out[C, "Please Retry"] >> Loop(RecX) |
+  ( pwd.type.match {
+    case Correct => ...
+    case Incorrect => ...
+  )
+})
+*/
+
 type Phase[Id <: Int, Ci <: InChannel[Msg[?,?]],
            Peers <: Seq[OutChannel[Msg[?,?]]],
            N <: Nat, As <: Nat, Bs <: Nat] <: Process = Compare[Size[Peers], N] match {
@@ -64,23 +74,24 @@ def broadcast[Id <: Int, V <: A|B,
   }
 }
 
-def endPhase[Id <: Int, Ci <: InChannel[Msg[?,?]], NA <: Nat, NB <: Nat, Peers <: Seq[OutChannel[Msg[?,?]]]](id: Id, ci: Ci, peers: Peers,
-             nA: NA, nB: NB): EndPhase[Id, Ci,
-                                       Peers,
-                                       NA, NB] = compare(nA, nB) match {
-  case _: Greater[?,?] => broadcast(id, A(), peers) >> loop(RecX)
-  case _: LessEqual[?,?] => broadcast(id, B(), peers) >> loop(RecX)
+def endPhase[Id <: Int, Ci <: InChannel[Msg[?,?]], NA <: Nat, NB <: Nat, Peers <: Seq[OutChannel[Msg[?,?]]]]
+            (id: Id, ci: Ci, peers: Peers, nA: NA, nB: NB): EndPhase[Id, Ci, Peers, NA, NB] = {
+  compare(nA, nB) match {
+    case _: Greater[?,?] => broadcast(id, A(), peers) >> loop(RecX)
+    case _: LessEqual[?,?] => broadcast(id, B(), peers) >> loop(RecX)
+  }
 }
 
-/** Does not compile due to Dotty bug #9999 :-(
-def phase[Id <: Int, Ci <: InChannel[Msg[?,?]], N <: Nat, NA <: Nat, NB <: Nat, Peers <: Seq[OutChannel[Msg[?,?]]]](id: Id, ci: Ci, peers: Peers,
-                                          n: N, nA: NA, nB: NB)
+/** Does not compile due to Dotty bug #9999 :-( */
+/*
+def phase[Id <: Int, Ci <: InChannel[Msg[?,?]], N <: Nat, NA <: Nat, NB <: Nat, Peers <: Seq[OutChannel[Msg[?,?]]]]
+         (id: Id, ci: Ci, peers: Peers, n: N, nA: NA, nB: NB)
          (implicit timeout: Duration): Phase[Id, Ci, Peers,
                                              N, NA, NB] = compare(size(peers), n) match {
   case _: Greater[?,?] => endPhase(id, ci, peers, nA, nB)
   case _: LessEqual[?,?] => receive(ci) { msg => msg.payload match {
-    case _: A => phase(id, ci, peers, s(n), s(nA), nB)
-    case _: B => phase(id, ci, peers, s(n), nA, s(nB))
+    case _: A => phase(id, ci, peers, succ(n), succ(nA), nB)
+    case _: B => phase(id, ci, peers, succ(n), nA, succ(nB))
   } }
 }
 */
