@@ -74,8 +74,8 @@ def broadcast[Id <: Int, V <: A|B,
   }
 }
 
-def endPhase[Id <: Int, Ci <: InChannel[Msg[?,?]], NA <: Nat, NB <: Nat, Peers <: Seq[OutChannel[Msg[?,?]]]]
-            (id: Id, ci: Ci, peers: Peers, nA: NA, nB: NB): EndPhase[Id, Ci, Peers, NA, NB] = {
+def endPhase[Id <: Int, Ci <: InChannel[Msg[?,?]], Peers <: Seq[OutChannel[Msg[?,?]]]]
+            (id: Id, ci: Ci, peers: Peers, nA: Nat, nB: Nat): EndPhase[Id, Ci, Peers, nA.type, nB.type] = {
   compare(nA, nB) match {
     case _: Greater[?,?] => broadcast(id, A(), peers) >> loop(RecX)
     case _: LessEqual[?,?] => broadcast(id, B(), peers) >> loop(RecX)

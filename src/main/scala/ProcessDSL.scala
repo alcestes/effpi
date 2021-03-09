@@ -66,6 +66,8 @@ case class Foreach[S <: Seq[A], A, F <: (x: A) => Process](channels: S, f: F) ex
 
 case class >>:[P1 <: Process, P2 <: Process](p1: () => P1, p2: () => P2) extends Process
 
+case class Let[A, F <: A => Process](v: A, f: F) extends Process
+
 package object dsl {
   /** Recursion: `P` loops on `V`, that represent a bound recursion variable. */
   type Rec[V[X] <: RecVar[X], P <: Process] = Def[V, Unit, P, P]
@@ -160,6 +162,9 @@ package object dsl {
 
   /** Do nothing (inactive process). */
   case object nil extends PNil
+
+  /** Bind a variable in the given process */
+  def let[A, F <: A => Process](v: A)(f: F) = Let[A, F](v, f)
 
   /** Send argument `v` via channel `c`. */
   def send[C <: OutChannel[A], A](c: C, v: A) = Out[C,A](c, v)

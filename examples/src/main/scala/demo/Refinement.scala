@@ -41,7 +41,15 @@ sealed abstract class Compare[N1 <: Nat, N2 <: Nat]
 case class LessEqual[N1 <: Nat, N2 <: Nat] protected (n1: N1, n2: N2) extends Compare[N1, N2]
 case class Greater[N1 <: Nat, N2 <: Nat] protected (n1: N1, n2: N2) extends Compare[N1, N2]
 
-def compare[N1 <: Nat, N2 <: Nat](n1: N1, n2: N2): Compare[N1, N2] = {
+def compare(n1: Nat, n2: Nat): Compare[n1.type, n2.type] = {
+  if (toInt(n1) <= toInt(n2)) {
+    LessEqual(n1, n2)
+  } else {
+    Greater(n1, n2)
+  }
+}
+
+def compareB[N1 <: Nat, N2 <: Nat](n1: N1, n2: N2): Compare[N1, N2] = {
   if (toInt(n1) <= toInt(n2)) {
     LessEqual(n1, n2)
   } else {
