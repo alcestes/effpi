@@ -208,8 +208,7 @@ def test3MatchB(c: OutChannel[A|B], x: A|B): Seq[Out[c.type, x.type], Yielding[O
   _ <- send(c, x)
 } yield x
 
-import scala.compiletime.S
-import scala.compiletime.ops.int.{+,-}
+import scala.compiletime.ops.int.{S,+,-}
 
 type Protocol4[C <: OutChannel[A|B], N <: Int] <: Process[Int] = N match {
   case 0 => Yielding[Out[C, A], N]
