@@ -1,8 +1,7 @@
 package effpi.examples.demo.consensus2
 
 import scala.concurrent.duration.Duration
-import scala.compiletime.S
-import scala.compiletime.ops.int._
+import scala.compiletime.ops.int.{+,S}
 
 import effpi.process._
 import effpi.process.dsl._
