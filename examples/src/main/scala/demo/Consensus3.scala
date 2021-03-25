@@ -38,13 +38,13 @@ type Password[...] = In(C, Passwd, (pwd: Passwd) => (
 type Phase[Id <: Int, Ci <: InChannel[Msg[?,?]],
            Peers <: Seq[OutChannel[Msg[?,?]]],
            N <: Nat, As <: Nat, Bs <: Nat] <: Process = Compare[Size[Peers], N] match {
-  case Greater[?,?] => EndPhase[Id, Ci, Peers, As, Bs]
+  case Greater[?,?] => EndPhase[Id, Ci, Peers, N, As, Bs]
   case LessEqual[?,?] => In[Ci, Msg[?,?], (msg: Msg[?,?]) =>
                             MsgMatch[msg.payload.type,
                                      Id, Ci, Peers, N, As, Bs]]
 }
 
-type MsgMatch[Cmp <: Compare2[?,?], Id <: Int, Ci <: InChannel[Msg[?,?]],
+type MsgMatch[Cmp <: A|B, Id <: Int, Ci <: InChannel[Msg[?,?]],
               Peers <: Seq[OutChannel[Msg[?,?]]],
               N <: Nat, As <: Nat, Bs <: Nat] <: Process = Cmp match {
     case A => Phase[Id, Ci, Peers, Succ[N], Succ[As], Bs]
@@ -53,7 +53,7 @@ type MsgMatch[Cmp <: Compare2[?,?], Id <: Int, Ci <: InChannel[Msg[?,?]],
 
 type EndPhase[Id <: Int, Ci <: InChannel[Msg[?,?]],
               Peers <: Seq[OutChannel[Msg[?,?]]],
-              As <: Nat, Bs <: Nat] <: Process = Compare[As, Bs] match {
+              N <: Nat, As <: Nat, Bs <: Nat] <: Process = Compare[As, Bs] match {
   case Greater[?,?] =>
     Broadcast[Id, A, Peers] >>: Loop[RecX]
   case LessEqual[?,?] =>
@@ -66,32 +66,29 @@ type Broadcast[Id <: Int, V <: A|B, Peers <: Seq[OutChannel[Msg[?,?]]]] = (
   ]
 )
 
-def broadcast[Id <: Int, V <: A|B,
-              Cs <: Seq[OutChannel[Msg[?,?]]]](id: Id, v: V,
-                                               cs: Cs): Broadcast[Id, V, Cs] = {
+def broadcast[V <: A|B, Peers <: Seq[OutChannel[Msg[?,?]]]](id: Int, v: V,
+              cs: Peers): Broadcast[id.type, V, Peers] = {
   foreach(cs) { c =>
     send(c, Msg(id, v))
   }
 }
 
-def endPhase[Id <: Int, Ci <: InChannel[Msg[?,?]], Peers <: Seq[OutChannel[Msg[?,?]]]]
-            (id: Id, ci: Ci, peers: Peers, nA: Nat, nB: Nat): EndPhase[Id, Ci, Peers, nA.type, nB.type] = {
-  compare(nA, nB) match {
+def endPhase[Peers <: Seq[OutChannel[Msg[?,?]]], N <: Nat, NA <: Nat, NB <: Nat]
+            (id: Int, ci: InChannel[Msg[?,?]], peers: Peers,
+             n: N, nA: NA, nB: NB): EndPhase[id.type, ci.type, Peers, N, NA, NB] = {
+  compareB(nA, nB) match {
     case _: Greater[?,?] => broadcast(id, A(), peers) >> loop(RecX)
     case _: LessEqual[?,?] => broadcast(id, B(), peers) >> loop(RecX)
   }
 }
 
-/** Does not compile due to Dotty bug #9999 :-( */
-/*
-def phase[Id <: Int, Ci <: InChannel[Msg[?,?]], N <: Nat, NA <: Nat, NB <: Nat, Peers <: Seq[OutChannel[Msg[?,?]]]]
-         (id: Id, ci: Ci, peers: Peers, n: N, nA: NA, nB: NB)
-         (implicit timeout: Duration): Phase[Id, Ci, Peers,
-                                             N, NA, NB] = compare(size(peers), n) match {
-  case _: Greater[?,?] => endPhase(id, ci, peers, nA, nB)
+def phase[Peers <: Seq[OutChannel[Msg[?,?]]], N <: Nat, NA <: Nat, NB <: Nat]
+         (id: Int, ci: InChannel[Msg[?,?]], peers: Peers, n: N, nA: NA, nB: NB)
+         (implicit timeout: Duration): Phase[id.type, ci.type, Peers,
+                                             N, NA, NB] = compareB(size(peers), n) match {
+  case _: Greater[?,?] => endPhase(id, ci, peers, n, nA, nB)
   case _: LessEqual[?,?] => receive(ci) { msg => msg.payload match {
     case _: A => phase(id, ci, peers, succ(n), succ(nA), nB)
     case _: B => phase(id, ci, peers, succ(n), nA, succ(nB))
   } }
 }
-*/

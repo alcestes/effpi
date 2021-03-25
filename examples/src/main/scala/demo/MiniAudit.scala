@@ -48,7 +48,7 @@ package object implementation {
   //  * while interacting on its mailbox (`mb_`), whenever the actor sends
   //    something on `aud`, then it will also eventually produce an `Accepted`
   //    message (before using `aud` again)
-  @verify(property = "reactive(mb_)(aud) && responsive(mb_)(aud) && output_eventually_followed(aud)(Accepted)(mb_)")
+  // @verify(property = "reactive(mb_)(aud) && responsive(mb_)(aud) && output_eventually_followed(aud)(Accepted)(mb_)")
   def payment(aud: ActorRef[Audit[_]]): Actor[Pay, Payment[aud.type]] = {
     forever {
       read { (pay: Pay) =>
@@ -89,6 +89,7 @@ package object implementation {
 
 // To run this example, try:
 // sbt "examples/runMain effpi.examples.demo.audit.Main"
+/*
 object Main {
   import types._
   import implementation._
@@ -110,5 +111,6 @@ object Main {
     ps.kill()
   }
 }
+*/
 
 
