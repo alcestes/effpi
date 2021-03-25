@@ -55,7 +55,7 @@ package object dsl {
    *  receive a value, then pass it to the `cont`inuation. */
   def read[T, P <: Process, TP <: T => P](cont: TP)
                                          (implicit timeout: Duration): Actor[T, ReadDep[T, TP]] = {
-    pdsl.receive[Mailbox[T], T, TP](implicitly[ActorCtx[T]].mbox)(cont)(timeout)
+    pdsl.receive[Mailbox[T], T, P, TP](summon[ActorCtx[T]].mbox)(cont)(timeout)
   }
 
   /** Send argument `x` to an actor via its reference `ref`. */
