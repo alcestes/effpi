@@ -78,7 +78,7 @@ package types {
        ])
     ]
   }
-
+  
   type BobRespMatch[X <: OK|Cancel|Negotiate,
                     CResp <: OutChannel[Buy|Cancel],
                     CConf <: InChannel[Confirm]] <: Process = X match {
@@ -120,8 +120,6 @@ package implementation {
     }
   }
 
-  // This does not compile due to https://github.com/lampepfl/dotty/issues/9999
-  /*
   // Alice's process
   def alice(cTitle: OutChannel[String],
             cQuote: InChannel[Quote | NotAvailable],
@@ -156,7 +154,6 @@ package implementation {
           }
         }
       }
-  */
   
   def bobRespMatch(res: OK|Cancel|Negotiate,
                    cResp: OutChannel[Buy | Cancel],
