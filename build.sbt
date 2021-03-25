@@ -1,4 +1,4 @@
-val dottyVersion = "3.0.0-RC2-bin-20210225-ce30a1c-NIGHTLY"
+val dottyVersion = "3.0.0-RC2-bin-20210325-eeb8340-NIGHTLY"
 // val dottyVersion = dottyLatestNightlyBuild.get
 val effpiVersion = "0.0.3"
 
