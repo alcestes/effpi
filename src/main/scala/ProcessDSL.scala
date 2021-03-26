@@ -170,7 +170,7 @@ package object dsl {
   def send[C <: OutChannel[A], A](c: C, v: A) = Out[C,A](c, v)
 
   /** Use channel `c` to receive a value, then pass it to the `cont`inuation. */
-  def receive[C <: InChannel[A], A, P <: A => Process](c: C)(cont: P)(implicit timeout: Duration) = In[C,A,P](c, cont, timeout)
+  def receive[C <: InChannel[A], A, P <: Process, F <: A => P](c: C)(cont: F)(implicit timeout: Duration) = In[C,A,F](c, cont, timeout)
 
   /** Fork `p` as a separate process.
   *
