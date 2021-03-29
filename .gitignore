@@ -9,3 +9,8 @@ benchmarkresults/
 benchmarks.db
 
 .vscode
+.bloop
+.bsp
+.metals
+
+docs/_build
