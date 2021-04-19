@@ -1,4 +1,4 @@
-val dottyVersion = "3.0.0-RC2-bin-20210325-eeb8340-NIGHTLY"
+val dottyVersion = "3.0.0-RC2"
 // val dottyVersion = dottyLatestNightlyBuild.get
 val effpiVersion = "0.0.3"
 
@@ -9,8 +9,9 @@ inThisBuild(
   useEffpiPlugin := true
 )
 
-lazy val effpi = (project in file(".")).
-  settings(
+lazy val effpi = project
+  .in(file("."))
+  .settings(
     name := "effpi",
     version := effpiVersion,
 
@@ -53,7 +54,7 @@ lazy val benchmarks = project
       "ch.qos.logback"  % "logback-classic"  % "1.2.3"
     ),
 
-    mainClass in assembly := Some("effpi.benchmarks.main.Main"),
+    assembly / mainClass := Some("effpi.benchmarks.main.Main"),
   )
 
 // Options for loading the compiler plugin
@@ -78,7 +79,7 @@ def pluginOpts(verbose: Boolean, keepTmp: Boolean,
       // Uncomment (and comment line below) to change the task providing `jar`.
       // NOTE: since the plugin has external dependencies, we need a fat jar
       // (Keys.`package` in (plugin, Compile)) map { (jar: File) =>
-      (`assemblyOutputPath` in (plugin, assembly)) map { (jar: File) =>
+      (plugin / assembly / assemblyOutputPath) map { (jar: File) =>
         val addPlugin = s"-Xplugin:${jar.getAbsolutePath}"
 
         // Option to enable verbose logging
