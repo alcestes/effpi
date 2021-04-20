@@ -108,16 +108,17 @@ package implementation {
 
   def sell(amount: Int, cQuote1: OutChannel[Quote|NotAvailable], cQuote2: OutChannel[Quote|NotAvailable],
            cResp: InChannel[Buy | Cancel], cConf: OutChannel[Confirm]): TrySell[cQuote1.type, cQuote2.type, cResp.type, cConf.type] = {
-    send(cQuote1, Quote(amount)) >> {
+    seq(
+      send(cQuote1, Quote(amount)),
       send(cQuote2, Quote(amount)) >>
-      receive(cResp) { (res: Buy|Cancel) => res match {
+      receive(cResp) { (res: Buy|Cancel) => (res match {
         case b: Buy => {
           println("Shipping to: ${b.address)")
           send(cConf, Confirm(LocalDate.now().plusWeeks(1)))
         }
         case _: Cancel => nil
-      } }
-    }
+      }): SellerMatch[res.type, cConf.type] }
+    )
   }
 
   // Alice's process

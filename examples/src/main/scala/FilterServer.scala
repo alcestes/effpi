@@ -38,9 +38,9 @@ package object implementation {
     var lastForwarded = i2 // Last used for forwarding, between i1 or i2
     rec(RecX) {
       println("Filter1: waiting for data from 1st channel...")
-      receive(i1) { x =>
+      receive(i1) { (x: Int) =>
         println(s"Filter1: ...received ${x}. Waiting for data from 2nd channel...")
-        receive(i2) { y =>
+        receive(i2) { (y: Int) =>
           println(s"Filter1: ...received ${y}.")
           if (lastForwarded == i2) {
             println(s"Filter1: Forwarding ${x}, and looping")
@@ -61,9 +61,9 @@ package object implementation {
   def filter2(i1: IChan[Int], i2: IChan[Int],
               o: OChan[Int]): Filter[i1.type, i2.type, o.type] = rec(RecX) {
     println("Filter2: waiting for data from 1st channel...")
-    receive(i1) { x =>
+    receive(i1) { (x: Int) =>
       println(s"Filter2: ...received ${x}. Waiting for data from 2nd channel...")
-      receive(i2) { y =>
+      receive(i2) { (y: Int) =>
         println(s"Filter2: ...received ${y}. Sending the largest, and looping")
         if (x > y) {
           send(o, x) >>
@@ -84,7 +84,7 @@ package object implementation {
 
   // Data filtering server, waiting for mobile filtering code on `cm`, and
   // running it.
-  def server(cm: IChan[FilterCode], o: OChan[Int]) = {
+  def server(cm: IChan[FilterCode], o: OChan[Int]): Process = {
     val (data1, data2) = (Chan[Int](), Chan[Int]())
     par(
       producer(data1),
@@ -96,6 +96,7 @@ package object implementation {
   }
 } 
 
+/*
 // To run this example, try:
 //   sbt "examples/runMain effpi.examples.filterserver.Main"
 // NOTE: this will loop forever; you will need to press Ctrl+C to stop it
@@ -108,11 +109,11 @@ object Main {
     val cm = Chan[FilterCode]()
     val outputs = Chan[Int]()
 
-    val filter = (i1: Chan[Int], i2: IChan[Int], o: OChan[Int]) => {
+    val filter: FilterCode = (i1: Chan[Int], i2: IChan[Int], o: OChan[Int]) => {
        // We can pick filter1 or filter2 above (or others, as long as they
        // have type Filter, and can be sent over channel `cm`. Otherwise, the
        // Dotty compiler will issue a type error
-      filter2(i1, i2, o)
+      (filter1(i1, i2, o): Filter[i1.type, i2.type, o.type])
     }
 
     eval(
@@ -126,3 +127,4 @@ object Main {
     )
   }
 }
+*/

@@ -115,10 +115,7 @@ protected[system] class Executor(ps: ProcessSystem, stepsLeft: Int = 10) extends
           fastEval((env, lt, lh()), stepsLeft - 1)
       }
       case y: Yield[_] => {
-        y.ctx match {
-          case Some(c) => c.chan.asInstanceOf[OutChannel[Any]].send(y.v)
-          case None => ()
-        }
+        y.ctx.chan.asInstanceOf[OutChannel[Any]].send(y.v)
         lp match {
           case Nil => ()
           case lh :: lt =>

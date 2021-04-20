@@ -55,8 +55,10 @@ package object implementation {
         if (pay.amount > 42000) {
           send(pay.replyTo, Rejected())
         } else {
-          send(aud, Audit(pay)) >>
-          send(pay.replyTo, Accepted())
+          dsl.seq (
+            send(aud, Audit(pay)),
+            send(pay.replyTo, Accepted())
+          )
         }
       }
     }

@@ -40,7 +40,7 @@ object ProcessVerifExamples {
   def test3spawn(c1: Channel[Int], c2: Channel[String])
                 (implicit timeout: Duration): Process3Fork[c1.type, c2.type] = {
     println(s"P1: Waiting for input")
-    receive(c1) { x =>
+    receive(c1) { (x: Int) =>
       println(s"P1: Received: ${x}; sending 'Thanks'")
       send(c2, "Thanks")
     }

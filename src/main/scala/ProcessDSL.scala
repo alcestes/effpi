@@ -12,14 +12,14 @@ import scala.util.{Failure, Success, Try}
 sealed abstract class Process {
   def >>[P1 >: this.type <: Process, P2 <: Process](cont: => P2) = >>:[P1, P2](() => this, () => cont)
 
-  def fork[P1 >: this.type <: Process] = Fork[P1](() => this)
+  def fork = Fork[this.type](() => this)
 
   def spawn(ps: ProcessSystem) = {
     val self = this
     ps.scheduleProc((Map(), Nil, self))
   }
 }
-case class Out[C <: OutChannel[A], A](channel: C, v: A) extends Process
+case class Out[+C <: OutChannel[A], +A](channel: C, v: A) extends Process
 
 // FIXME:
 // * If we make In contravariant on A, type inference on "cont"
@@ -33,15 +33,16 @@ case class Out[C <: OutChannel[A], A](channel: C, v: A) extends Process
 // * If we make In covariant on A, we are wrong (and besides, we get a
 //   variance error in the definition of In)
 /** Receive a value from `channel`, and pass it to `cont`. */
-case class In[C <: InChannel[A], A, P <: A => Process](channel: C, cont: P, timeout: Duration) extends Process
+case class In[C <: InChannel[A], A, P <: PF[A, Process]](channel: C, cont: P, timeout: Duration) extends Process
+type PF[A, +P <: Process] = Function[A, P]
 
-case class Fork[P <: Process](p: () => P) extends Process
+case class Fork[+P <: Process](p: () => P) extends Process
 
 sealed abstract class PNil() extends Process
 
 abstract class YieldCtx[-A](protected[effpi] val chan: OutChannel[A])
 protected[effpi] class YieldCtxImpl[-A](chan: OutChannel[A]) extends YieldCtx[A](chan)
-case class Yield[A](v: A)(implicit val ctx: Option[YieldCtx[A]]) extends Process
+case class Yield[A](v: A)(implicit val ctx: YieldCtx[A]) extends Process
 
 abstract class ProcVar[A](name: String)
 case class ProcX[A]() extends ProcVar[A]("X")
@@ -59,98 +60,98 @@ case object RecY extends RecY[Unit]
 sealed abstract class RecZ[A]() extends RecVar[A]("Z")
 case object RecZ extends RecZ[Unit]
 
-case class Def[V[X] <: ProcVar[X], A, P1 <: Process, P2 <: Process](name: V[A], pdef: A => P1, in: () => P2) extends Process
+case class Def[V[X] <: ProcVar[X], A, +P1 <: Process, +P2 <: Process](name: V[A], pdef: A => P1, in: () => P2) extends Process
 case class Call[V[X]  <: ProcVar[X], A](procvar: V[A], arg: A) extends Process
 
-case class Foreach[S <: Seq[A], A, F <: (x: A) => Process](channels: S, f: F) extends Process
+case class Foreach[+S <: Seq[A], A, +F <: (x: A) => Process](channels: S, f: F) extends Process
 
-case class >>:[P1 <: Process, P2 <: Process](p1: () => P1, p2: () => P2) extends Process
+case class >>:[+P1 <: Process, +P2 <: Process](p1: () => P1, p2: () => P2) extends Process
 
-case class Let[A, F <: A => Process](v: A, f: F) extends Process
+case class Let[A, +F <: A => Process](v: A, f: F) extends Process
 
 package object dsl {
   /** Recursion: `P` loops on `V`, that represent a bound recursion variable. */
-  type Rec[V[X] <: RecVar[X], P <: Process] = Def[V, Unit, P, P]
+  type Rec[V[X] <: RecVar[X], +P <: Process] = Def[V, Unit, P, P]
 
   /** Loop on a recursion variable `V`, expected to be bound by [[Rec]].*/
   type Loop[V[X] <: RecVar[X]] = Call[V, Unit]
 
   /** Execute `P1` and `P2` in parallel. */
-  type Par[P1 <: Process, P2 <: Process] = Fork[P1] >>: P2
+  type Par[+P1 <: Process, +P2 <: Process] = Fork[P1] >>: P2
 
   /** Execute three processes in parallel. */
-  type Par3[P1 <: Process, P2 <: Process, P3 <: Process] = Par[P1, Par[P2, P3]]
+  type Par3[+P1 <: Process, +P2 <: Process, +P3 <: Process] = Par[P1, Par[P2, P3]]
 
   /** Execute four processes in parallel. */
-  type Par4[P1 <: Process, P2 <: Process, P3 <: Process, P4 <: Process] = (
+  type Par4[+P1 <: Process, +P2 <: Process, +P3 <: Process, +P4 <: Process] = (
     Par[P1, Par3[P2, P3, P4]]
   )
 
   /** Execute five processes in parallel. */
-  type Par5[P1 <: Process, P2 <: Process, P3 <: Process, P4 <: Process,
-            P5 <: Process] = (
+  type Par5[+P1 <: Process, +P2 <: Process, +P3 <: Process, +P4 <: Process,
+            +P5 <: Process] = (
     Par[P1, Par4[P2, P3, P4, P5]]
   )
 
   /** Execute six processes in parallel. */
-  type Par6[P1 <: Process, P2 <: Process, P3 <: Process, P4 <: Process,
-            P5 <: Process, P6 <: Process] = (
+  type Par6[+P1 <: Process, +P2 <: Process, +P3 <: Process, +P4 <: Process,
+            +P5 <: Process, +P6 <: Process] = (
     Par[P1, Par5[P2, P3, P4, P5, P6]]
   )
 
   /** Execute seven processes in parallel. */
-  type Par7[P1 <: Process, P2 <: Process, P3 <: Process, P4 <: Process,
-            P5 <: Process, P6 <: Process, P7 <: Process] = (
+  type Par7[+P1 <: Process, +P2 <: Process, +P3 <: Process, +P4 <: Process,
+            +P5 <: Process, +P6 <: Process, +P7 <: Process] = (
     Par[P1, Par6[P2, P3, P4, P5, P6, P7]]
   )
 
   /** Execute eight processes in parallel. */
-  type Par8[P1 <: Process, P2 <: Process, P3 <: Process, P4 <: Process,
-            P5 <: Process, P6 <: Process, P7 <: Process, P8 <: Process] = (
+  type Par8[+P1 <: Process, +P2 <: Process, +P3 <: Process, +P4 <: Process,
+            +P5 <: Process, +P6 <: Process, +P7 <: Process, +P8 <: Process] = (
     Par[P1, Par7[P2, P3, P4, P5, P6, P7, P8]]
   )
 
   /** Execute nine processes in parallel. */
-  type Par9[P1 <: Process, P2 <: Process, P3 <: Process, P4 <: Process,
-            P5 <: Process, P6 <: Process, P7 <: Process, P8 <: Process,
-            P9 <: Process] = (
+  type Par9[+P1 <: Process, +P2 <: Process, +P3 <: Process, +P4 <: Process,
+            +P5 <: Process, +P6 <: Process, +P7 <: Process, +P8 <: Process,
+            +P9 <: Process] = (
     Par[P1, Par8[P2, P3, P4, P5, P6, P7, P8, P9]]
   )
 
   /** Execute ten processes in parallel. */
-  type Par10[P1 <: Process, P2 <: Process, P3 <: Process, P4 <: Process,
-             P5 <: Process, P6 <: Process, P7 <: Process, P8 <: Process,
-             P9 <: Process, P10 <: Process] = (
+  type Par10[+P1 <: Process, +P2 <: Process, +P3 <: Process, +P4 <: Process,
+             +P5 <: Process, +P6 <: Process, +P7 <: Process, +P8 <: Process,
+             +P9 <: Process, +P10 <: Process] = (
     Par[P1, Par9[P2, P3, P4, P5, P6, P7, P8, P9, P10]]
   )
 
   /** Execute 11 processes in parallel. */
-  type Par11[P1 <: Process, P2 <: Process,  P3 <: Process, P4 <: Process,
-             P5 <: Process, P6 <: Process,  P7 <: Process, P8 <: Process,
-             P9 <: Process, P10 <: Process, P11 <: Process] = (
+  type Par11[+P1 <: Process, +P2 <: Process,  +P3 <: Process, +P4 <: Process,
+             +P5 <: Process, +P6 <: Process,  +P7 <: Process, +P8 <: Process,
+             +P9 <: Process, +P10 <: Process, +P11 <: Process] = (
     Par[P1, Par10[P2, P3, P4, P5, P6, P7, P8, P9, P10, P11]]
   )
 
   /** Execute 12 processes in parallel. */
-  type Par12[P1 <: Process, P2 <: Process,  P3 <: Process,  P4 <: Process,
-             P5 <: Process, P6 <: Process,  P7 <: Process,  P8 <: Process,
-             P9 <: Process, P10 <: Process, P11 <: Process, P12 <: Process] = (
+  type Par12[+P1 <: Process, +P2 <: Process,  +P3 <: Process,  +P4 <: Process,
+             +P5 <: Process, +P6 <: Process,  +P7 <: Process,  +P8 <: Process,
+             +P9 <: Process, +P10 <: Process, +P11 <: Process, +P12 <: Process] = (
     Par[P1, Par11[P2, P3, P4, P5, P6, P7, P8, P9, P10, P11, P12]]
   )
 
   /** Execute 13 processes in parallel. */
-  type Par13[P1 <: Process,  P2 <: Process,  P3 <: Process,  P4 <: Process,
-             P5 <: Process,  P6 <: Process,  P7 <: Process,  P8 <: Process,
-             P9 <: Process,  P10 <: Process, P11 <: Process, P12 <: Process,
-             P13 <: Process] = (
+  type Par13[+P1 <: Process,  +P2 <: Process,  +P3 <: Process,  +P4 <: Process,
+             +P5 <: Process,  +P6 <: Process,  +P7 <: Process,  +P8 <: Process,
+             +P9 <: Process,  +P10 <: Process, +P11 <: Process, +P12 <: Process,
+             +P13 <: Process] = (
     Par[P1, Par12[P2, P3, P4, P5, P6, P7, P8, P9, P10, P11, P12, P13]]
   )
 
   /** Execute 14 processes in parallel. */
-  type Par14[P1 <: Process,  P2 <: Process,  P3 <: Process,  P4 <: Process,
-             P5 <: Process,  P6 <: Process,  P7 <: Process,  P8 <: Process,
-             P9 <: Process,  P10 <: Process, P11 <: Process, P12 <: Process,
-             P13 <: Process, P14 <: Process] = (
+  type Par14[+P1 <: Process,  +P2 <: Process,  +P3 <: Process,  +P4 <: Process,
+             +P5 <: Process,  +P6 <: Process,  +P7 <: Process,  +P8 <: Process,
+             +P9 <: Process,  +P10 <: Process, +P11 <: Process, +P12 <: Process,
+             +P13 <: Process, +P14 <: Process] = (
     Par[P1, Par13[P2, P3, P4, P5, P6, P7, P8, P9, P10, P11, P12, P13, P14]]
   )
 
@@ -158,19 +159,25 @@ package object dsl {
   *
   * This is an experimental type, with the goal of modelling the
   * [[https://doc.akka.io/docs/akka/2.5/actors.html#ask-send-and-receive-future "ask pattern"]]. */
-  type Yielding[A, P <: Process] = YieldCtx[A] ?=> P
+  type Yielding[+A, +P <: Process] = YieldCtx[A] ?=> P
 
   /** Do nothing (inactive process). */
   case object nil extends PNil
 
+  /** Run 2 processes one after another */
+  def seq[P1 <: Process, P2 <: Process](p1: => P1, p2: => P2): >>:[P1, P2] = >>:(() => p1, () => p2)
+
+  /** Run 3 processes one after another */
+  def seq[P1 <: Process, P2 <: Process, P3 <: Process](p1: => P1, p2: => P2, p3: => P3): >>:[P1, >>:[P2, P3]] = seq(p1, seq(p2, p3))
+
   /** Bind a variable in the given process */
-  def let[A, F <: A => Process](v: A)(f: F) = Let[A, F](v, f)
+  def let[A, F <: A => Process](v: A)(f: F): Let[A, F] = Let[A, F](v, f)
 
   /** Send argument `v` via channel `c`. */
-  def send[C <: OutChannel[A], A](c: C, v: A) = Out[C,A](c, v)
+  def send[C <: OutChannel[A], A](c: C, v: A): Out[c.type, v.type] = Out[c.type, v.type](c, v)
 
   /** Use channel `c` to receive a value, then pass it to the `cont`inuation. */
-  def receive[C <: InChannel[A], A, P <: Process, F <: A => P](c: C)(cont: F)(implicit timeout: Duration) = In[C,A,F](c, cont, timeout)
+  def receive[C <: InChannel[A], A, P <: Process, F <: A => P](c: C)(cont: F)(implicit timeout: Duration): In[C, A, F] = In[C, A, F](c, cont, timeout)
 
   /** Fork `p` as a separate process.
   *
@@ -277,7 +284,7 @@ package object dsl {
   * typed by [[Yielding]]. Its goal is to capture the
   * [[https://doc.akka.io/docs/akka/2.5/actors.html#ask-send-and-receive-future "ask pattern"]]. */
   def pyield[A](v: A): YieldCtx[A] ?=> Yield[A] = {
-    Yield[A](v)(Some(implicitly[YieldCtx[A]]))
+    Yield[A](v)(summon[YieldCtx[A]])
   }
 
   def pdef[V[X] <: ProcVar[X], A, P1 <: Process, P2 <: Process](name: V[A])(pdef: A => P1)(in: => P2) = Def[V, A, P1, P2](name, pdef, () => in)
@@ -334,10 +341,7 @@ package object dsl {
       case lh :: lt => eval(env, lt, lh())
     }
     case y: Yield[_] => {
-      y.ctx match {
-        case Some(c) => c.chan.asInstanceOf[OutChannel[Any]].send(y.v)
-        case None => ()
-      }
+      y.ctx.chan.asInstanceOf[OutChannel[Any]].send(y.v)
       lp match {
         case Nil => ()
         case lh :: lt => eval(env, lt, lh())

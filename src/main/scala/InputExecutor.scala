@@ -139,10 +139,7 @@ protected[system] class InputExecutor(ps: ProcessSystem, stepsLeft: Int = 10) ex
             multiInEval((env, lt, lh()), stepsLeft - 1)
         }
         case y: Yield[_] => {
-          y.ctx match {
-            case Some(c) => c.chan.asInstanceOf[OutChannel[Any]].send(y.v)
-            case None => ()
-          }
+          y.ctx.chan.asInstanceOf[OutChannel[Any]].send(y.v)
           lp match {
             case Nil => ()
             case lh :: lt =>

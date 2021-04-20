@@ -103,7 +103,7 @@ package object implementation {
     println(s"Fork ${id}: available")
     send(acquire, ()) >> {
       println(s"Fork ${id}: picked")
-      receive(release) { _ =>
+      receive(release) { (_: Unit) =>
         loop(RecX)
       }
     }
@@ -119,14 +119,17 @@ package object implementation {
             drop2: OChan[Unit]): Philo[pick1.type, drop1.type,
                                        pick2.type, drop2.type] = rec(RecX) {
     println(s"${name}: picking first fork...")
-    receive(pick1) { _ =>
+    receive(pick1) { (_: Unit) =>
       println(s"${name}: picking second fork...")
-      receive(pick2) { _ =>
+      receive(pick2) { (_: Unit) =>
         println(s"${name}: eating, then dropping forks...")
-        send(drop1, ()) >> send(drop2, ()) >> {
-          println(s"${name}: Thinking...")
-          loop(RecX)
-        }
+        seq(
+          send(drop1, ()) >> send(drop2, ()),
+          { 
+            println(s"${name}: Thinking...")
+            loop(RecX)
+          }
+        )
       }
     }
   }

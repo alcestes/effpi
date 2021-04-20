@@ -59,12 +59,14 @@ object Chameneos {
       if (meetings < maxMeetings) {
         read { x =>
           read { y =>
-            send(x.replyTo, Mate[y.mate.type](y.mate)) >> {
-              send(y.replyTo, Mate[x.mate.type](x.mate)) >> {
+            dsl.seq(
+              send(x.replyTo, Mate[y.mate.type](y.mate)),
+              send(y.replyTo, Mate[x.mate.type](x.mate)),
+              {
                 meetings += 1
                 loop(RecA)
               }
-            }
+            )
           }
         }
       } else {
@@ -72,14 +74,17 @@ object Chameneos {
           endTimePromise.success(System.nanoTime())
         }
         nil >> read { x =>
-          send(x.replyTo, Stop) >> {
-            stoppedChameneos += 1
-            if (stoppedChameneos < numChameneos) {
-              loop(RecA)
-            } else {
-              nil
+          dsl.seq(
+            send(x.replyTo, Stop),
+            {
+              stoppedChameneos += 1
+              if (stoppedChameneos < numChameneos) {
+                loop(RecA)
+              } else {
+                nil
+              }
             }
-          }
+          )
         }
       }
     }
@@ -110,8 +115,8 @@ object Chameneos {
             case Stop =>
               nil
           }
-        }) { ref =>
-          send(server, Request(self, ref)) >>
+        }) { ref => dsl.seq(
+          send(server, Request(self, ref)),
           read {
             case Mate(mate) =>
               send(mate, MateColour(colour)) >>
@@ -119,7 +124,7 @@ object Chameneos {
             case Stop =>
               send(ref, Stop)
           }
-        }
+        )}
       }
     }
 

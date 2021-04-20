@@ -49,14 +49,16 @@ object PingPong {
     prec(RecA) {
       // println("ping...")
       if (count > 0) {
-        send(pongRef, Ping(self)) >>
-        read { (x: PongMessage) => x match {
+        dsl.seq(
+          send(pongRef, Ping(self)),
+          read { 
             case PongMessage.Pong =>
               count = count - 1
               // println(s"count = $count")
               // println("finishing...")
               ploop(RecA)
-          }}
+          }
+        )
       } else {
         send(pongRef, Stop())
       }

@@ -6,7 +6,7 @@ package effpi.examples.audit
 import effpi.actor.ActorRef
 import effpi.actor.dsl._
 import effpi.process._
-import effpi.process.dsl.{Yielding, pyield}
+import effpi.process.dsl.{Yielding, pyield, seq}
 
 import java.net.URI
 import java.util.UUID
@@ -50,24 +50,30 @@ object GetMoney {
   def doAudit(aud: ActorRef[LogActivity], who: ActorRef[Nothing],
               msg: String) = Behavior[ActivityLogged, Yielding[Long, Audit[aud.type]]] {
     val id = Random.nextLong()
-    send(aud, LogActivity(who, msg, id, self)) >>
-    read {
-      case ActivityLogged(`who`, `id`) => pyield(id)
-    }
+    seq (
+      send(aud, LogActivity(who, msg, id, self)),
+      read {
+        case ActivityLogged(`who`, `id`) => pyield(id)
+      }
+    )
   }
 
   def doPayment(from: URI, amount: BigDecimal,
                 payments: ActorRef[PaymentService]) = Behavior[PaymentResult, Payment[payments.type]] {
     val uuid = UUID.randomUUID()
-    send(payments, Authorize(from, amount, uuid, self)) >>
-    read {
-      case PaymentSuccess(`uuid`) => {
-        send(payments, Capture(uuid, amount, self)) >>
-        read {
-          case PaymentSuccess(`uuid`) => nil
+    seq(
+      send(payments, Authorize(from, amount, uuid, self)),
+      read {
+        case PaymentSuccess(`uuid`) => {
+          seq(
+            send(payments, Capture(uuid, amount, self)),
+            read {
+              case PaymentSuccess(`uuid`) => nil
+            }
+          )
         }
       }
-    }
+    )
   }
 }
 

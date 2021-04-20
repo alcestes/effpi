@@ -81,10 +81,12 @@ package object dsl {
                     (srv: ActorRef[Req], query: ActorRef[Resp] => Req)
                     (implicit timeout: Duration) = Behavior[Resp,
              pdsl.Yielding[Resp, SendTo[srv.type, Req] >>: ReadDep[Resp, (x:Resp) => Yield[x.type]]]] {
-    send(srv, query(self)) >>
-    read { x =>
-      pdsl.pyield(x)
-    }
+    pdsl.seq(
+      send(srv, query(self)),
+      read { (x: Resp) =>
+        pdsl.pyield(x)
+      }
+    )
   }
   def ask[Req, Resp, P <: Process]
          (srv: ActorRef[Req])
